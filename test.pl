@@ -23,9 +23,11 @@ use strict;
 sub nogo {print "not "}
 sub ok {my $t=shift; print "ok $t\n";}
 
-our($loaded);
+our($loaded, $verbose);
 ok(1);
 $loaded=1;
+
+$verbose=0 unless defined $verbose;
 
 my $base=`rpmbuild --nobuild --eval '%{_topdir}' 2>/dev/null`;
 use File::Copy;
@@ -43,9 +45,7 @@ chdir "..";
 my $outre='Summary\:.*\%description.*\%setup.*\%build.*'
   . '\%install.*\%clean.*\%files.*\%changelog';
 
-
 my @args=qw(./makerpm.pl --specs --nochown --verbose --auto-desc);
-
 
 foreach my $ver ( "0.002", "0.003", "0.0031", "0.0032", "0.004" ) {
   my $file="$base/SPECS/Getopt-Function-$ver.spec";
@@ -60,13 +60,19 @@ our ($comm,$stat,$out);
 
 $comm = join " ", @args, "--source=Getopt-Function-0.003.tar.gz", "2>&1";
 
+print STDERR "\nrunning $comm\n" if $verbose;
+
 $out=`$comm`;
 $stat=$? >> 8;
 nogo if ($stat == 0);
 ok(2);
-unless ($stat == 255) {
-    warn "$comm gave unexpected status got status $stat, output:\n$out\n";
-    nogo;
+#unless ($statx == 255) {
+#   warn "$comm gave unexpected status got status $stat, output:\n$out\n";
+#   nogo;
+#}
+unless ($out =~ m/RPM data dir is too new/) {
+   warn "no version warning from makerpm , output:\n$out\n";
+   nogo;
 }
 ok(3);
 nogo unless $out =~ m/data\s+dir.+too\s*new/;
@@ -77,6 +83,8 @@ ok(5);
 # this command should should work correctly but warn about bad version
 
 $comm = join " ", @args, "--source=Getopt-Function-0.0031.tar.gz", "2>&1";
+
+print STDERR "\nrunning $comm\n" if $verbose;
 
 $out=`$comm`;
 $stat=$? >> 8;
@@ -94,6 +102,8 @@ ok(9);
 
 $comm = join " ", @args, "--source=Getopt-Function-0.0032.tar.gz", "2>&1";
 
+print STDERR "\nrunning $comm\n" if $verbose;
+
 $out=`$comm`;
 $stat=$? >> 8;
 
@@ -104,11 +114,12 @@ ok(11);
 nogo unless -e "$base/SPECS/Getopt-Function-0.0032.spec";
 ok(12);
 
-
 # BUILD TESTS 
 # should automatically derive description and build to end
 
 $comm = join " ", @args, "--source=Getopt-Function-0.002.tar.gz", "2>&1";
+
+print STDERR "\nrunning $comm\n" if $verbose;
 
 $out=`$comm`;
 $stat=$? >> 8;
@@ -131,7 +142,11 @@ ok(17);
 
 my $rpmbuild="rpmbuild -ba";
 
-$out=`$rpmbuild $base/SPECS/Getopt-Function-0.002.spec 2>&1`;
+$comm="$rpmbuild $base/SPECS/Getopt-Function-0.002.spec 2>&1";
+
+print STDERR "\nrunning $comm\n" if $verbose;
+
+$out=`$comm`;
 $stat=$? >> 8;
 
 nogo unless $stat == 0; #perl die
@@ -140,6 +155,8 @@ ok(18);
 # should use package provided description and build to end
 
 $comm = join " ", @args, "--source=Getopt-Function-0.004.tar.gz", "2>&1";
+
+print STDERR "\nrunning $comm\n" if $verbose;
 
 $out=`$comm`;
 $stat=$? >> 8;
@@ -158,5 +175,3 @@ $stat=$? >> 8;
 
 nogo unless $stat == 0; #perl die
 ok(23);
-
-

@@ -1,3 +1,4 @@
 Makefile
+*.tar
 *.tar.gz
 *.patch

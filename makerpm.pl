@@ -4,7 +4,8 @@
 #	makerpm.pl - A Perl script for building binary distributions
 #		     of Perl packages
 #
-#	This scrbipt is Copyright (C) 1999	Jochen Wiedmann
+#
+#	This script is Copyright (C) 1999	Jochen Wiedmann
 #						Am Eisteich 9
 #						72555 Metzingen
 #					        Germany
@@ -17,8 +18,12 @@
 #
 #       Some parts of this script were modified by RedHat 2000.
 #
-#       This script is Copyright (C) 2000/2001  Michael De La Rue
+#       This script is Copyright (C) 2000/2001/2003/2004  Michael De La Rue
 #                                               <mikedlr@tardis.ed.ac.uk>
+#
+#
+#       Michael is the current maintainer.  Please contact him with
+#       suggestions for improvement.
 #
 #       for reliable contact, you may call +48 601 270538 (expensive to
 #       call from everywhere in the world so unlikely to be spammed to
@@ -29,7 +34,7 @@
 #       to be somewhat legally ambiguous.  This is not a binding
 #       requirement in any way.
 
-require 5.003; #because of use of my variables etc..
+require 5.003;			#because of use of my variables etc..
 
 use strict;
 
@@ -43,11 +48,10 @@ use Config ();
 use Symbol;
 
 
-
 use vars qw($VERSTR $VERSION $ID);
 
-( $VERSION ) = ( $VERSTR= "makerpm 0.401 2004/01/05, (C) 1999 Jochen Wiedmann (C) 2001,2003,2004 Michael De La Rue") =~ /([0-9]+\.[0-9]+)/;
-$ID = '$Id: makerpm.pl,v 1.24 2004/01/05 07:31:25 mikedlr Exp $ ';
+( $VERSION ) = ( $VERSTR= "makerpm 0.405 2004/02/07, (C) 1999 Jochen Wiedmann (C) 2001,2003,2004 Michael De La Rue") =~ /([0-9]+\.[0-9]+)/;
+$ID = '$Id: makerpm.pl,v 1.28 2004/02/07 10:47:34 mikedlr Exp $ ';
 
 =head1 NAME
 
@@ -92,7 +96,6 @@ can use with
 If the default behaviour is fine for you, that will do. Otherwise see
 the list of options below.
 
-
 =head2 Creating PPM packages
 
 **** I don't know if this works and can't support it - mikedlr *****
@@ -105,14 +108,13 @@ You can create the package with
 
   makerpm --ppm -E -source=<package>-<version>.tar.gz
 
-**** this feature will probably be removed soon!!! *****
+**** this feature will probably be removed soon!!! contact me if you use it!!!*****
 	
 =head2 Command Line Options
 
 There are many command line options.  For the most part you don't have
 to use them since makerpm will I<do the right thing>.  You should
 at least consider setting --copyright however.  
-
 
 Here is a full list:
 
@@ -123,16 +125,16 @@ Here is a full list:
 Activate automatic building of the description field.  See full
 description below.
 
-=item --build
+XS=item --build
 
-**** this is basically an internal function *****
+**** this is a deprecated internal function DO NOT USE IT ANY MORE *****
 	
 Compile the sources, typically by running
 
 	perl Makefile.PL
 	make
 
-**** this feature will probably be removed soon!!! *****
+**** this feature will probably be removed soon!!! contact me if you use it!!!*****
 
 =item --build-root=<dir>
 
@@ -199,7 +201,7 @@ Print the usage message and exit.
 
 =item --install
 
-**** this is basically an internal function *****
+**** this is a deprecated internal function DO NOT USE IT ANY MORE *****
 
 Install the sources, typically by running
 
@@ -210,7 +212,7 @@ so-called buildroot directory (for example F</var/tmp/build-root>)
 is created and installation is adapted relative to that directory.
 See the I<--build-root> option for details.
 
-**** this feature will probably be removed soon!!! *****
+**** this feature will probably be removed soon!!! contact me if you use it!!!*****
 
 =item --make=<path>
 
@@ -255,7 +257,7 @@ is read from the script name: If you invoke it as I<makerpm>, then
 RPM mode is choosen. When running as I<makeppm>, then PPM mode is
 enabled.
 
-**** this feature will probably be removed soon!!! *****
+**** this feature will probably be removed soon!!! contact me if you use it!!!*****
 
 =item --noname-prefix
 
@@ -280,9 +282,11 @@ Set the package name and version. These options are required for --build and
 
 Create PPM related files.  See B<creating PPD files> above.
 
-**** this feature will probably be removed soon!!! *****
+**** this feature will probably be removed soon!!! contact me if you use it!!!*****
 
 =item --prep
+
+**** this is a deprecated internal function DO NOT USE IT ANY MORE *****
 
 Extract the sources and prepare the source directory.
 
@@ -501,7 +505,6 @@ foreach my $dir (qw(/var/tmp /tmp C:/Windows/temp D:/Windows/temp)) {
 #    . " as specified by the Perl README";
 $Distribution::COPYRIGHT = "Probably the same terms as perl.  Check.";
 
-
 sub new {
     my $proto = shift;
     my $self = { @_ };
@@ -515,12 +518,12 @@ sub new {
     }
 
     $self->{'name'} = $self->{'package-name'}
-	or die "Missing package name";
+      or die "Missing package name";
     $self->{'version'} = $self->{'package-version'}
-	or die "Missing package version";
+      or die "Missing package version";
 
-# this used to be File::Spec->curdir() - I don't understand why.  Michael
-# cwd() seems useful since it lets us use the directory we start in.
+    # this used to be File::Spec->curdir() - I don't understand why.  Michael
+    # cwd() seems useful since it lets us use the directory we start in.
     $self->{'source_dirs'} ||= [ Cwd::cwd() ];
     $self->{'default_setup_dir'} = "$self->{'name'}-$self->{'version'}";
     $self->{'setup-dir'} ||= $self->{'default_setup_dir'};
@@ -533,10 +536,10 @@ sub new {
 
     if (!defined($self->{'start_perl'} = $self->{'perl-path'})) {
 	$self->{'start_perl'} = substr($Config::Config{'startperl'}, 2)
-	    if defined $Config::Config{'startperl'};
+	  if defined $Config::Config{'startperl'};
     }
     $self->{'start_perl'} = undef
-	if defined($self->{'start_perl'}) && $self->{'start_perl'} eq 'undef';
+      if defined($self->{'start_perl'}) && $self->{'start_perl'} eq 'undef';
 
     $self;
 }
@@ -555,7 +558,7 @@ sub MakeDirFor {
 
 sub Extract {
     my $self = shift;  my $dir = shift || File::Spec->curdir();
-    print STDERR "Changing directory to $dir\n" if $self->{'verbose'};
+    print STDERR "Extract files in $dir\n" if $self->{'verbose'};
     chdir $dir || die "Failed to chdir to $dir: $!";
 
     # Look for the source file
@@ -573,9 +576,9 @@ sub Extract {
     }
 
     -e $source or do {
-      print STDERR "Source file doesn't exist in any sourcedir; pwd ",
-	 `pwd`, "\n", join ( " ", @{$self->{'source_dirs'}} ), "\n";
-      die "no source file $source";
+	print STDERR "Source file doesn't exist in any sourcedir; pwd ",
+	  `pwd`, "\n", join ( " ", @{$self->{'source_dirs'}} ), "\n";
+	die "no source file $source";
     };
 
     $dir = $self->{'setup-dir'};
@@ -592,8 +595,7 @@ sub Extract {
     eval { require Archive::Tar; require Compress::Zlib; };
     if ($@) {
 	$fallback = 1;
-    }
-    else {
+    } else {
 	if (Archive::Tar->can("extract_archive")) {
 	    if (not defined(Archive::Tar->extract_archive($source))) {
 		# Failed to extract: wonder why?
@@ -603,8 +605,7 @@ sub Extract {
 			# Compress::Zlib is installed.  Oh well.
 			# 
 			$fallback = 1;
-		    }
-		    else {
+		    } else {
 			die "Failed to extract archive $source: $_";
 		    }
 		}
@@ -623,13 +624,13 @@ sub Extract {
     if ($fallback) {
 	# Archive::Tar is not available; fallback to tar and gzip
 	my $command = $^O eq "MSWin32" ?
-	    "tar xzf $source" :
+	  "tar xzf $source" :
 	    "gzip -cd $source | tar xf - 2>&1";
 	my $output = `$command`;
 	die "Archive::Tar and Compress::Zlib are not available\n"
-	    . " and using tar and gzip failed.\n"
+	  . " and using tar and gzip failed.\n"
 	    . " Command was: $command\n"
-	    . " Output was: $output\n"
+	      . " Output was: $output\n"
 		if $output;
     }
 }
@@ -645,30 +646,30 @@ sub RMFiles {
 
     my $old_dir = Cwd::cwd();
     eval {
-      print STDERR "Changing directory to $dir\n" if $self->{'verbose'};
-      chdir $dir || die "Failed to chdir to $dir: $!";
-      my $fh = Symbol::gensym();
-      open ($fh, "<MANIFEST") || die "Failed to open MANIFEST: $!";
-      my @manifest=<$fh>;
-      close $fh;
-      my $re = $self->{'rm-files'};
-      print STDERR "Removing files matching ".$self->{'rm-files'}." in $dir\n"
-	if $self->{'verbose'};
-      for (my $i=$#manifest; $i > -1 ; $i--) {
-	chomp $manifest[$i];
-	print STDERR "checking", $manifest[$i],"\n" if $self->{'verbose'};
-	$manifest[$i] =~ m/$re/o or next;
-	print STDERR "Removing ", $manifest[$i],"\n" if $self->{'verbose'};
-	unlink $manifest[$i] 
-	  || die "Failed to unlink " . $manifest[$i] . " " . $!;
-	splice (@manifest,$i,1);
-      }
-      open ($fh, ">MANIFEST") || die "Failed to open MANIFEST: $!";
-      print $fh join ("\n", @manifest); #newlinse still included
-      close $fh;
+	print STDERR "Removing unwanted files in $dir\n" if $self->{'verbose'};
+	chdir $dir || die "Failed to chdir to $dir: $!";
+	my $fh = Symbol::gensym();
+	open ($fh, "<MANIFEST") || die "Failed to open MANIFEST: $!";
+	my @manifest=<$fh>;
+	close $fh;
+	my $re = $self->{'rm-files'};
+	print STDERR "Removing files matching ".$self->{'rm-files'}." in $dir\n"
+	  if $self->{'verbose'};
+	for (my $i=$#manifest; $i > -1 ; $i--) {
+	    chomp $manifest[$i];
+	    print STDERR "checking", $manifest[$i],"\n" if $self->{'verbose'};
+	    $manifest[$i] =~ m/$re/o or next;
+	    print STDERR "Removing ", $manifest[$i],"\n" if $self->{'verbose'};
+	    unlink $manifest[$i] 
+	      || die "Failed to unlink " . $manifest[$i] . " " . $!;
+	    splice (@manifest,$i,1);
+	}
+	open ($fh, ">MANIFEST") || die "Failed to open MANIFEST: $!";
+	print $fh join ("\n", @manifest); #newlinse still included
+	close $fh;
     };
     my $status = $@;
-    print STDERR "Changing directory to $old_dir\n" if $self->{'verbose'};
+    print STDERR "Returning directory to $old_dir\n" if $self->{'verbose'};
     chdir $old_dir;
     die $@ if $status;
 }
@@ -678,7 +679,7 @@ sub Modes {
 
     return if $^O eq "MSWin32";
 
-    print STDERR "Changing directory to $dir\n" if $self->{'verbose'};
+    print STDERR "Fixing file permissions in $dir\n" if $self->{'verbose'};
     chdir $dir || die "Failed to chdir to $dir: $!";
     my $handler = sub {
 	my($dev, $ino, $mode, $nlink, $uid, $gid) = stat;
@@ -686,16 +687,16 @@ sub Modes {
 	$new_mode |= 0200 if $mode & 0200;
 	$new_mode |= 0111 if $mode & 0100;
 	chmod $new_mode, $_
-	    or die "Failed to change mode of $File::Find::name: $!";
+	  or die "Failed to change mode of $File::Find::name: $!";
 	if ($self->{chown}) {
 	    chown 0, 0, $_
-		or die "Try --nochown; failed chown of $File::Find::name: $!";
+	      or die "Try --nochown; failed chown of $File::Find::name: $!";
 	}
     };
 
-#    $dir = File::Spec->curdir();
+    #    $dir = File::Spec->curdir();
     $dir = Cwd::cwd();
-    print STDERR "Changing modes in $dir\n" if $self->{'verbose'};
+    print STDERR "Returning to directory  $dir\n" if $self->{'verbose'};
     File::Find::find($handler, $dir);
 }
 
@@ -704,36 +705,58 @@ sub Prep {
     my $old_dir = Cwd::cwd();
     eval {
 	my $dir = $self->{'build_dir'};
-	print STDERR "Changing directory to $dir\n" if $self->{'verbose'};
+	print STDERR "Running Prep in $dir\n" if $self->{'verbose'};
 	chdir $dir || die "Failed to chdir to $dir: $!";
 	if (-d $self->{'setup-dir'}) {
 	    print STDERR "Removing directory: $self->{'setup-dir'}\n"
-		if $self->{'verbose'};
+	      if $self->{'verbose'};
 	    #give an absolute path for better error messages.
 	    File::Path::rmtree(Cwd::cwd() . '/' . $self->{'setup-dir'}, 0, 0);
 	    -e $self->{'setup-dir'} && die "failed to delete directory " .
-		( File::Spec->file_name_is_absolute($self->{'setup-dir'})
-		  ? ($self->{'setup-dir'})
-		  : File::Spec->catdir( (Cwd::cwd() ,
-					 $self->{'setup-dir'}) ) );
+	      ( File::Spec->file_name_is_absolute($self->{'setup-dir'})
+		? ($self->{'setup-dir'})
+		: File::Spec->catdir( (Cwd::cwd() ,
+				       $self->{'setup-dir'}) ) );
 	}
 	$self->Extract();
 	$self->RMFiles() if $self->{'rm-files'};
 	$self->Modes($self->{'setup-dir'});
     };
     my $status = $@;
-    print STDERR "Changing directory to $old_dir\n" if $self->{'verbose'};
+    print STDERR "Returning to directory $old_dir\n" if $self->{'verbose'};
     chdir $old_dir;
     die $@ if $status;
 }
 
 sub PerlMakefilePL {
     my $self = shift; my $dir = shift || File::Spec->curdir();
-    print STDERR "Changing directory to $dir\n" if $self->{'verbose'};
+    print STDERR "PerlMakeFile in drectory $dir\n" if $self->{'verbose'};
     chdir $dir || die "Failed to chdir to $dir: $!";
-    my @command = ($^X, @{$self->{'makeperlopts'}}, 
-		   "-e",  "do 'Makefile.PL' or die $@;", 
-		   @{$self->{'makemakeropts'}});
+
+    #note Makefile.PL can return undef (no reason not to) which means that 
+    #we can't use the return value from do to trap errors; also $! can be set 
+    #by any error which occurs inside the Makefile.PL and so we can't tell the 
+    #difference between an internal error and an external one using do
+
+# fails in the case of Makefile.PL returns undef
+#   my @command = ($^X, @{$self->{'makeperlopts'}}, 
+#		   "-e",  "do 'Makefile.PL' or die $@;", 
+#		   @{$self->{'makemakeropts'}});
+
+# fails in the case of IO error inside do
+#   my @command = ($^X, @{$self->{'makeperlopts'}}, 
+#		   "-e",  "do 'Makefile.PL'; " . 'die $! if $!; die $@ if $@; ', 
+#		    @{$self->{'makemakeropts'}});
+
+    #this workaround from Ed Avis should deal with all that
+
+    my @command =
+      ($^X, @{$self->{'makeperlopts'}}, "-e",
+       '$f = "Makefile.PL"; open FH, $f or die "$f: $!"; { local $/; $code = <FH> } eval $code; die $@ if $@',
+       @{$self->{'makemakeropts'}});
+
+    # but, FIXME - find a simpler form or fix perl :-)
+
     print STDERR "Creating Makefile: ". join ("| |",@command) ." \n" 
       if $self->{'verbose'};
     exit 1 if system @command;
@@ -742,7 +765,7 @@ sub PerlMakefilePL {
 sub Make {
     my $self = shift;
     if (my $dir = shift) {
-	print STDERR "Changing directory to $dir\n" if $self->{'verbose'};
+	print STDERR "Calling Make in directory $dir\n" if $self->{'verbose'};
 	chdir $dir || die "Failed to chdir to $dir: $!";
     }
     my $command = "$self->{'make'} " . ($self->{'makeopts'} || '');
@@ -783,19 +806,19 @@ sub ReadLocations {
 #in the rpm
 
 sub Makewrite {
-  my $filename=shift;
-  -w $filename and return undef;
-  my @stat=stat($filename);
-  chmod 0700, $filename or die "couldn't make file writable $filename";
-  return \@stat;
+    my $filename=shift;
+    -w $filename and return undef;
+    my @stat=stat($filename);
+    chmod 0700, $filename or die "couldn't make file writable $filename";
+    return \@stat;
 }
 
 sub UnMakewrite {
-  my $filename=shift;
-  my $oldperm=shift;
-  my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,
-      $ctime,$blksize,$blocks) = @$oldperm;
-  return chmod $mode & 07777, $filename;
+    my $filename=shift;
+    my $oldperm=shift;
+    my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,
+	$ctime,$blksize,$blocks) = @$oldperm;
+    return chmod $mode & 07777, $filename;
 }
 
 sub AdjustPaths {
@@ -812,7 +835,7 @@ sub AdjustPaths {
 	local $/ = undef;
 	my $contents;
 	die "Failed to read $File::Find::name: $!"
-	    unless defined($contents = <$fh>);
+	  unless defined($contents = <$fh>);
 	my $modified;
 	if ($self->{'start_perl'}) {
 	    $contents =~ s/^\#\!(\S*perl\S*)/\#\!$self->{'start_perl'}/si;
@@ -824,9 +847,9 @@ sub AdjustPaths {
 	if ($modified) {
 	    seek($fh, 0, 0) or die "Failed to seek in $File::Find::name: $!";
 	    (print $fh $contents)
-		or die "Failed to write $File::Find::name: $!";
+	      or die "Failed to write $File::Find::name: $!";
 	    truncate $fh, length($contents)
-		or die "Failed to truncate $File::Find::name: $!";
+	      or die "Failed to truncate $File::Find::name: $!";
 	}
 	close($fh) or die "Failed to close $File::Find::name: $!";
 	defined $origstate && UnMakewrite($f,$origstate);
@@ -838,14 +861,14 @@ sub AdjustPaths {
 sub MakeInstall {
     my $self = shift;
     if (my $dir = shift) {
-	print STDERR "Changing directory to $dir\n" if $self->{'verbose'};
+	print STDERR "Running MakeInstall in directory $dir\n" if $self->{'verbose'};
 	chdir $dir || die "Failed to chdir to $dir: $!";
     }
 
     my $locations = ReadLocations();
 
     my $command = "$self->{'make'} " . ($self->{'makeopts'} || '')
-	. " install";
+      . " install";
     foreach my $key (qw(INSTALLPRIVLIB INSTALLARCHLIB INSTALLSITELIB
                         INSTALLSITEARCH INSTALLBIN INSTALLSCRIPT
 			INSTALLMAN1DIR INSTALLMAN3DIR)) {
@@ -867,16 +890,16 @@ sub MakeInstall {
     }
 
     if ($self->{compress_manpages}) {
-      foreach my $file (sort keys %$files) {
-	#FIXME: this regexp is not guaranteed.  (Maybe matching
-	#'/man/man\d/' would be better?)
-	($file =~ m,/usr/(.*/|)man/, ) and ($file .= ".gz");
-	$fileList .= "$file\n";
-      }
+	foreach my $file (sort keys %$files) {
+	    #FIXME: this regexp is not guaranteed.  (Maybe matching
+	    #'/man/man\d/' would be better?)
+	    ($file =~ m,/usr/(.*/|)man/, ) and ($file .= ".gz");
+	    $fileList .= "$file\n";
+	}
     } else {
-      foreach my $file (sort keys %$files) {
-	$fileList .= "$file\n";
-      }
+	foreach my $file (sort keys %$files) {
+	    $fileList .= "$file\n";
+	}
     }
 
     my($filelist_path, $specs_path) = $self->FileListPath();
@@ -884,7 +907,7 @@ sub MakeInstall {
 	my $fh = Symbol::gensym();
 	(open($fh, ">$filelist_path")  and  (print $fh $fileList)
 	 and  close($fh))
-	    or  die "Failed to create list of files in $filelist_path: $!";
+	  or  die "Failed to create list of files in $filelist_path: $!";
     }
     $specs_path;
 }
@@ -901,7 +924,7 @@ sub Build {
     my $old_dir = Cwd::cwd();
     eval {
 	my $dir = $self->{'build_dir'};
-	print STDERR "Changing directory to $dir\n" if $self->{'verbose'};
+	print STDERR "Running Build() in directory $dir\n" if $self->{'verbose'};
 	chdir $dir || die "Failed to chdir to $dir: $!";
 	$self->PerlMakefilePL($self->{'setup-dir'});
 	$self->Make();
@@ -927,7 +950,7 @@ sub Install {
     my $filelist;
     eval {
 	my $dir = $self->{'build_dir'};
-	print STDERR "Changing directory to $dir\n" if $self->{'verbose'};
+	print STDERR "Running Install() in directory $dir\n" if $self->{'verbose'};
 	chdir $dir || die "Failed to chdir to $dir: $!";
 	#originally we deleted all files.  This is now done at the start of
 	#%install meaning that the user can add files to the RPM
@@ -946,216 +969,224 @@ package Distribution::RPM;
 @Distribution::RPM::ISA = qw(Distribution);
 
 {
-  my($source_dir, $build_dir, $specs_dir, $topdir);
+    my($source_dir, $build_dir, $specs_dir, $topdir);
 
-  sub Init {
-    my $self = shift; my $fatal = shift;
-    die "Self must be a reference" unless (ref $self);
-    die "Self must be a hash reference" unless ($self =~ m/HASH/);
-    my $rpm_version;
+    sub Init {
+	my $self = shift; my $fatal = shift;
+	die "Self must be a reference" unless (ref $self);
+	die "Self must be a hash reference" unless ($self =~ m/HASH/);
+	my $rpm_version;
 
-    my $last_rpm=4; #latest version of RPM we have seen
-    my $next_rpm=$last_rpm+1; #latest version of RPM we have seen
+	my $last_rpm=4;		#latest version of RPM we have seen
+	my $next_rpm=$last_rpm+1; #latest version of RPM we have seen
 
-    if (defined $self->{"rpm-version"}) {
-      $rpm_version = $self->{"rpm-version"};
-    } else {
-      my $rpm_version_string = `rpm --version`;
-      if ($rpm_version_string =~ /rpm\s+version\s+([2-$last_rpm])\.+/i) {
-	$rpm_version=$1;
-      } elsif ($rpm_version_string =~ /rpm\s+version\s+[10]\.+/i) {
-	die "Cannot handle RPM before version 2: " .
-	  ($rpm_version_string || "");
-      } elsif ($rpm_version_string
-	       =~ /rpm\s+version\s+([$next_rpm-9]|\d\d+)/i) {
-	$rpm_version=$last_rpm;
-	warn "Your RPM is a new version.  I'm going to pretend it's "
-	  . "rpm $last_rpm";
-      } elsif ($rpm_version_string =~ /rpm\s+version\s/i) {
-	$rpm_version=$last_rpm;
-	warn "RPM version unkown.  I'm going to pretend it's $last_rpm";
-      } else {
-	die "RPM --version option didn't work as expected..";
-      }
-    }
-    $self->{"rpm-version"}=$rpm_version;
-
-  CASE: {
-      $rpm_version == 2 && do { $self->handle_rpm_version_2() ; last CASE;};
-      $rpm_version == 3 && do { $self->handle_rpm_version_3() ; last CASE;};
-      $rpm_version == 4 && do { $self->handle_rpm_version_4() ; last CASE;};
-      die "RPM version should be between 2 and $last_rpm";
-    }
-
-    return init_directories();
-  }
-
-  sub init_directories {
-    if (!$source_dir) {
-      $source_dir = $ENV{'RPM_SOURCE_DIR'} if $ENV{'RPM_SOURCE_DIR'};
-      $build_dir = $ENV{'RPM_BUILD_DIR'} if $ENV{'RPM_BUILD_DIR'};
-
-      $source_dir=`rpm --eval '%_sourcedir'` unless $source_dir;
-      chomp $source_dir;
-      die "Failed to work out source_dir from rpm" unless $source_dir;
-      $specs_dir=`rpm --eval '%_specdir'` unless $specs_dir;
-      chomp $specs_dir;
-      die "Failed to work out specs_dir from rpm" unless $specs_dir;
-      $build_dir=`rpm --eval '%_builddir'` unless $build_dir;
-      chomp $build_dir;
-      die "Failed to work out build_dir from rpm" unless $build_dir;
-    }
-    if (!$topdir) {
-      foreach my $dir ("redhat", "packages", "OpenLinux") {
-	if (-d "/usr/src/$dir") {
-	  $topdir = "/usr/src/$dir";
-	  last;
+	if (defined $self->{"rpm-version"}) {
+	    $rpm_version = $self->{"rpm-version"};
+	} else {
+	    my $rpm_version_string = `rpm --version`;
+	    if ($rpm_version_string =~ /rpm\s+version\s+([2-$last_rpm])\.+/i) {
+		$rpm_version=$1;
+	    } elsif ($rpm_version_string =~ /rpm\s+version\s+[10]\.+/i) {
+		die "Cannot handle RPM before version 2: " .
+		  ($rpm_version_string || "");
+	    } elsif ($rpm_version_string
+		     =~ /rpm\s+version\s+([$next_rpm-9]|\d\d+)/i) {
+		$rpm_version=$last_rpm;
+		warn "Your RPM is a new version.  I'm going to pretend it's "
+		  . "rpm $last_rpm";
+	    } elsif ($rpm_version_string =~ /rpm\s+version\s/i) {
+		$rpm_version=$last_rpm;
+		warn "RPM version unkown.  I'm going to pretend it's $last_rpm";
+	    } else {
+		die "RPM --version option didn't work as expected..";
+	    }
 	}
-      }
-      die "Unable to determine RPM topdir" unless $topdir;
-    }
-    $source_dir ||= "$topdir/SOURCES";
-    $specs_dir ||= "$topdir/SPECS";
-    $build_dir ||= "$topdir/BUILD";
-    return ($source_dir, $build_dir, $specs_dir);
-  }
+	$self->{"rpm-version"}=$rpm_version;
 
-  sub handle_rpm_version_2 {
-    my $self=shift;
-    my $rpm_output = `rpm --showrc`;
-    foreach my $ref (['topdir', \$topdir],
-		     ['specdir', \$specs_dir],
-		     ['sourcedir', \$source_dir],
-		     ['builddir', \$build_dir]) {
-      my $var = $ref->[0];
-      if ($rpm_output =~ /^$var\s+\S+\s+(.*)/m) {
-	${$ref->[1]} ||= $1;
-      }
-    }
-  }
+      CASE: {
+	    $rpm_version == 2 && do { $self->handle_rpm_version_2() ; last CASE;};
+	    $rpm_version == 3 && do { $self->handle_rpm_version_3() ; last CASE;};
+	    $rpm_version == 4 && do { $self->handle_rpm_version_4() ; last CASE;};
+	    die "RPM version should be between 2 and $last_rpm";
+	}
 
-  sub handle_rpm_version_3 {
-    my $self=shift;
-    my $rpm_output = `rpm --showrc`;
-    my $varfunc;
-    $varfunc = sub {
-      my $var = shift;
-      my $val;
-      if ($rpm_output =~ /^\S+\s+$var\s+(.*)/m) {
-	$val = $1;
-	while ($val =~ /\%\{(\S+)\}/) {
-	  my $vr = $1;
-	  my $vl = &$varfunc($vr);
-	  if (defined($vl)) {
-	    $val =~ s/^\%\{\Q$vr\E\}/$vl/gs;
-	  } else {
+	return init_directories();
+    }
+
+    sub init_directories {
+	if (!$source_dir) {
+	    $source_dir = $ENV{'RPM_SOURCE_DIR'} if $ENV{'RPM_SOURCE_DIR'};
+	    $build_dir = $ENV{'RPM_BUILD_DIR'} if $ENV{'RPM_BUILD_DIR'};
+
+	    $source_dir=`rpm --eval '%_sourcedir'` unless $source_dir;
+	    chomp $source_dir;
+	    die "Failed to work out source_dir from rpm" unless $source_dir;
+	    $specs_dir=`rpm --eval '%_specdir'` unless $specs_dir;
+	    chomp $specs_dir;
+	    die "Failed to work out specs_dir from rpm" unless $specs_dir;
+	    $build_dir=`rpm --eval '%_builddir'` unless $build_dir;
+	    chomp $build_dir;
+	    die "Failed to work out build_dir from rpm" unless $build_dir;
+	}
+	if (!$topdir) {
+	    foreach my $dir ("redhat", "packages", "OpenLinux") {
+		if (-d "/usr/src/$dir") {
+		    $topdir = "/usr/src/$dir";
+		    last;
+		}
+	    }
+	    die "Unable to determine RPM topdir" unless $topdir;
+	}
+	$source_dir ||= "$topdir/SOURCES";
+	$specs_dir ||= "$topdir/SPECS";
+	$build_dir ||= "$topdir/BUILD";
+	return ($source_dir, $build_dir, $specs_dir);
+    }
+
+    sub handle_rpm_version_2 {
+	my $self=shift;
+	my $rpm_output = `rpm --showrc`;
+	foreach my $ref (['topdir', \$topdir],
+			 ['specdir', \$specs_dir],
+			 ['sourcedir', \$source_dir],
+			 ['builddir', \$build_dir]) {
+	    my $var = $ref->[0];
+	    if ($rpm_output =~ /^$var\s+\S+\s+(.*)/m) {
+		${$ref->[1]} ||= $1;
+	    }
+	}
+    }
+
+    sub handle_rpm_version_3 {
+	my $self=shift;
+	my $rpm_output = `rpm --showrc`;
+	my $varfunc;
+	$varfunc = sub {
+	    my $var = shift;
+	    my $val;
+	    if ($rpm_output =~ /^\S+\s+$var\s+(.*)/m) {
+		$val = $1;
+		while ($val =~ /\%\{(\S+)\}/) {
+		    my $vr = $1;
+		    my $vl = &$varfunc($vr);
+		    if (defined($vl)) {
+			$val =~ s/^\%\{\Q$vr\E\}/$vl/gs;
+		    } else {
+			return undef;
+		    }
+		}
+		return $val;
+	    }
 	    return undef;
-	  }
+	};
+
+	sub handle_rpm_version_4 {
+	    my $self=$_[0];
+	    my $ret=handle_rpm_version_3(@_);
+	    $self->{compress_manpages}=1;
+	    $self->{'find-requires'}=1 unless defined $self->{'find-requires'};
+	    return $ret;
 	}
-	return $val;
-      }
-      return undef;
-    };
 
-    sub handle_rpm_version_4 {
-      my $self=$_[0];
-      my $ret=handle_rpm_version_3(@_);
-      $self->{compress_manpages}=1;
-      $self->{'find-requires'}=1 unless defined $self->{'find-requires'};
-      return $ret;
+	foreach my $ref (['_topdir', \$topdir],
+			 ['_specdir', \$specs_dir],
+			 ['_sourcedir', \$source_dir],
+			 ['_builddir', \$build_dir]) {
+	    ${$ref->[1]} ||= &$varfunc($ref->[0]);
+	}
     }
-
-    foreach my $ref (['_topdir', \$topdir],
-		     ['_specdir', \$specs_dir],
-		     ['_sourcedir', \$source_dir],
-		     ['_builddir', \$build_dir]) {
-      ${$ref->[1]} ||= &$varfunc($ref->[0]);
-    }
-  }
 
 }
 
 sub new {
-  my $proto = shift;
-  my $self = $proto->SUPER::new(@_);
-  ($self->{'rpm-source-dir'}, $self->{'rpm-build-dir'},
-   $self->{'rpm-specs-dir'}) = $self->Init(1);
-  # rpm-data-dir is a directory for perl authors to put RPM related
-  # info into.  The name is important since it must be common
-  # across all perl modules and must not be used for reasons other
-  # than setting up RPM builds.  For this reason it should be agreed
-  # with the rest of the perl community.
-  $self->{'rpm-data-dir'} = 'pkg-data-rpm';
-  if ($self->{'data-dir'}) {
-    my $dir=$self->{'data-dir'}/$self->{'package-name'} ;
-    if (-d $dir) {
-      $self->{'user-data-dir'} = $dir;
-      #FIXME: if we do bulk building then this would be a
-      #normal case.
-      warn "Data dir $dir found\n" if $self->{'verbose'};
-    } else {
-      print STDERR "Didn't find data dir $dir\n" if $self->{'verbose'};
+    my $proto = shift;
+    my $self = $proto->SUPER::new(@_);
+    ($self->{'rpm-source-dir'}, $self->{'rpm-build-dir'},
+     $self->{'rpm-specs-dir'}) = $self->Init(1);
+    # rpm-data-dir is a directory for perl authors to put RPM related
+    # info into.  The name is important since it must be common
+    # across all perl modules and must not be used for reasons other
+    # than setting up RPM builds.  For this reason it should be agreed
+    # with the rest of the perl community.
+    $self->{'rpm-data-dir'} = 'pkg-data-rpm';
+    if ($self->{'data-dir'}) {
+	my $dir=$self->{'data-dir'}/$self->{'package-name'} ;
+	if (-d $dir) {
+	    $self->{'user-data-dir'} = $dir;
+	    #FIXME: if we do bulk building then this would be a
+	    #normal case.
+	    warn "Data dir $dir found\n" if $self->{'verbose'};
+	} else {
+	    print STDERR "Didn't find data dir $dir\n" if $self->{'verbose'};
+	}
     }
-  }
-  $self->{'rpm-group'} ||= 'Development/Languages/Perl';
-  push(@{$self->{'source_dirs'}}, $self->{'rpm-source-dir'});
-  $self->{'build_dir'} = $self->{'rpm-build-dir'};
-  $self;
+    $self->{'rpm-group'} ||= 'Development/Languages/Perl';
+    push(@{$self->{'source_dirs'}}, $self->{'rpm-source-dir'});
+    $self->{'build_dir'} = $self->{'rpm-build-dir'};
+    $self;
 }
 
 #FIXME: Files should also differentiate
 #  configuration files, at least any in /etc
 #  documentation??
 
-#this funcgtion creates four hashes
-#%d - directories in the build %dirs - the same but with full path
-#%f - files in the build %files - the same but with full path
+#this function returns four hashes
+#%d - directories in the build
+#%f - files in the build
+#%dirs - the same as %d but with full path
+#%files - the same as %f but with full path
+# the keys give the name.
 #
-# the keys give the name.  
-# 
 # the value will be 1 for files
 # for directories 0 means a directory to be included.  1 means a directory
 # that should be skipped
 
+# given that makerpm dynamically builds the file list during the build
+# process, this function is mainly
+
 sub Files {
-  my $self = shift;  my $buildRoot = shift;
-  my(%files, %dirs);
-  my $findSub = sub {
-    #FIXME: better handling of perllocal.pod might be desirable (why???).
-    #For example, we could store its contents in $self and then output it
-    #into the specfile in the postinst script.  This could then add it
-    #to the live systems perllocal.pod.
-
-    if (-d $_) {
-      $dirs{$File::Find::name} ||= 0;
-      $dirs{$File::Find::dir} = 1;
-    } elsif (-f _) {
-      $dirs{$File::Find::dir} = 1;
-      $File::Find::name =~ m,/usr/lib/perl\d+/.*/perllocal.pod, and return;
-      $files{$File::Find::name} = 1;
-    } else {
-      die "Unknown file type: $File::Find::name";
+    my $self = shift;  my $buildRoot = shift;
+    if (not -d $buildRoot) {
+	warn "directory $buildRoot does not exist please report and/or investigate\n";
+	return ({}, {}, {}, {});
     }
-  };
-  File::Find::find($findSub, $buildRoot);
+    my(%files, %dirs);
+    my $findSub = sub {
+	#FIXME: better handling of perllocal.pod might be desirable (why???).
+	#For example, we could store its contents in $self and then output it
+	#into the specfile in the postinst script.  This could then add it
+	#to the live systems perllocal.pod.
 
-  # Remove the trailing buildRoot
-  my(%f, %d);
-  while (my($key, $val) = each %files) {
-    $key =~ s/^\Q$buildRoot\E//;
-    $f{$key} = $val
-  }
-  while (my($key, $val) = each %dirs) {
-    $key =~ s/^\Q$buildRoot\E//;
-    $d{$key} = $val
-  }
-  (\%f, \%d, \%files, \%dirs);
+	if (-d $_) {
+	    $dirs{$File::Find::name} ||= 0;
+	    $dirs{$File::Find::dir} = 1;
+	} elsif (-f _) {
+	    $dirs{$File::Find::dir} = 1;
+	    $File::Find::name =~ m,/usr/lib/perl\d+/.*/perllocal.pod, and return;
+	    $files{$File::Find::name} = 1;
+	} else {
+	    die "Unknown file type: $File::Find::name";
+	}
+    };
+    File::Find::find($findSub, $buildRoot);
+
+    # Remove the trailing buildRoot
+    my(%f, %d);
+    while (my($key, $val) = each %files) {
+	$key =~ s/^\Q$buildRoot\E//;
+	$f{$key} = $val
+    }
+    while (my($key, $val) = each %dirs) {
+	$key =~ s/^\Q$buildRoot\E//;
+	$d{$key} = $val
+    }
+    (\%f, \%d, \%files, \%dirs);
 }
 
 sub FileListPath {
-  my $self = shift;
-  my $fl = $self->{'setup-dir'} . ".rpmfilelist";
-  ($fl, File::Spec->catdir($self->{'setup-dir'}, $fl));
+    my $self = shift;
+    my $fl = $self->{'setup-dir'} . ".rpmfilelist";
+    ($fl, File::Spec->catdir($self->{'setup-dir'}, $fl));
 }
 
 sub CheckDocFileForDesc {
@@ -1168,9 +1199,9 @@ sub CheckDocFileForDesc {
     my $desc;
     my $linecount=1;
   LINE: while ( my $line=<$fh> ) {
-      $desc .= $line;
-      $linecount++;
-      $linecount > 25 && last LINE;
+	$desc .= $line;
+	$linecount++;
+	$linecount > 25 && last LINE;
     }
     close($fh) or die "Failed to close $filename $!";
     #FIXME: quality check
@@ -1193,26 +1224,26 @@ sub CheckPerlProgForDesc {
 
     my $linecount=1;
   LINE: while (my $line=<$fh>){
-      ($line =~ m/^=head1[\t ]+DESCRIPTION/) and do {
-	  while ( $line=<$fh> ) {
-	      ($line =~ m/^=(head1)|(cut)/) and last LINE;
-	      $desc .= $line;
-	      $linecount++;
-	      $linecount > 30 && last LINE;
-	  }
-      };
-      #tests to see if the descripiton is good enough
-      #FIXME: mentions package name?
-  }
+	($line =~ m/^=head1[\t ]+DESCRIPTION/) and do {
+	    while ( $line=<$fh> ) {
+		($line =~ m/^=(head1)|(cut)/) and last LINE;
+		$desc .= $line;
+		$linecount++;
+		$linecount > 30 && last LINE;
+	    }
+	};
+	#tests to see if the descripiton is good enough
+	#FIXME: mentions package name?
+    }
     close($fh) or die "Failed to close $filename $!";
     ( $desc =~ m/(....\n.*){3}/m ) and do {
-#Often descriptions don't say the name of the module and
-#furthermore they always assume that we know they are a perl
-#module so put in a little header.
+	#Often descriptions don't say the name of the module and
+	#furthermore they always assume that we know they are a perl
+	#module so put in a little header.
 	$desc =~ s/^\s*\n//;
-	$desc="This package contains the perl module " .
-	    $self->{"package-name"} . ".\n\n" . $desc 
-	      unless $desc =~ m/perl/ and $desc =~ m/module/;
+	$desc="This package contains the perl extension " .
+	  $self->{"package-name"} . ".\n\n" . $desc 
+	    unless $desc =~ m/perl/ and $desc =~ m/module/;
 	print STDERR "Found description in $filename\n" if $self->{'verbose'};
 	return $desc;
     };
@@ -1232,23 +1263,23 @@ sub ProcessFileNames {
     die "function miscall" unless (ref $self && (ref $doclist eq "ARRAY"));
 
     print STDERR "Sorting different perl file possibilities\n"
-	if $self->{'verbose'};
+      if $self->{'verbose'};
 
     local $::simplename=$self->{"package-name"};
     local ($::A, $::B);
     $::simplename =~ s,[-/ ],_,g;
     $::simplename =~ tr/[A-Z]/[a-z]/;
 
-#Ordering Heuristic
-#
-#best: the description in the module named the same as the package
-#
-#next: documentation files
-#
-#next: files named as package
-#finally: prefer .pod to .pm to .pl
-#
-#N.B. sort high to low not low to high
+    #Ordering Heuristic
+    #
+    #best: the description in the module named the same as the package
+    #
+    #next: documentation files
+    #
+    #next: files named as package
+    #finally: prefer .pod to .pm to .pl
+    #
+    #N.B. sort high to low not low to high
 
     my @sort_list = sort {
 	local $::res=0;
@@ -1262,53 +1293,53 @@ sub ProcessFileNames {
 	#bundles seem a bad place to look from our limited experience
 	#this might be better as an exception on the next rule??
 	return $::res
-	    if ( $::res = - (($::B =~ m/(^|_)bundle_/ )
-			     <=> ($::A =~ m/(^|_)bundle_/ )) ) ;
+	  if ( $::res = - (($::B =~ m/(^|_)bundle_/ )
+			   <=> ($::A =~ m/(^|_)bundle_/ )) ) ;
 	return $::res
-	    if ( $::res = (($::B =~ m/$::simplename.(pm|pod|pod)/ )
-			   <=> ($::A =~ m/$::simplename.(pm|pod|pod)/ )) ) ;
+	  if ( $::res = (($::B =~ m/$::simplename.(pm|pod|pod)/ )
+			 <=> ($::A =~ m/$::simplename.(pm|pod|pod)/ )) ) ;
 	return $::res
-	    if ( $::res = (($::B =~ m/^readme/ )
-			   <=> ($::A =~ m/^readme/ )) ) ;
+	  if ( $::res = (($::B =~ m/^readme/ )
+			 <=> ($::A =~ m/^readme/ )) ) ;
 	return $::res
-	    if ( $::res = (($::B =~ m/.pod$/ )
-			   <=> ($::A =~ m/.pod$/ )) ) ;
+	  if ( $::res = (($::B =~ m/.pod$/ )
+			 <=> ($::A =~ m/.pod$/ )) ) ;
 	return $::res
-	    if ( $::res = (($::B =~ m/.pm$/ )
-			   <=> ($::A =~ m/.pm$/ )) ) ;
+	  if ( $::res = (($::B =~ m/.pm$/ )
+			 <=> ($::A =~ m/.pm$/ )) ) ;
 	return $::res
-	    if ( $::res = (($::B =~ m/.pl$/ )
-			   <=> ($::A =~ m/.pl$/ )) ) ;
+	  if ( $::res = (($::B =~ m/.pl$/ )
+			 <=> ($::A =~ m/.pl$/ )) ) ;
 	return $::res
-	    if ( $::res = (($::B =~ m/$::simplename/ )
-			   <=> ($::A =~ m/$::simplename/ )) ) ;
+	  if ( $::res = (($::B =~ m/$::simplename/ )
+			 <=> ($::A =~ m/$::simplename/ )) ) ;
 	return length $::B <=> length $::A;
     } @$doclist;
 
     print STDERR "Checking which fies could really be used\n"
-	if $self->{'verbose'};
-    my $useful=0; #assume first always good
+      if $self->{'verbose'};
+    my $useful=0;		#assume first always good
   CASE: {
-      $#sort_list == 1 && do {
-	  $useful=1;
-	  last CASE;
-      };
-      while (1) {
-	  $useful==$#sort_list and last CASE;
-	  #non perl files in the list must be there for some reason
-	  ($sort_list[$useful+1] =~ m/\.p(od|m|l)$/) or do {$useful++; next};
-	  my $cmp_name=$sort_list[$useful+1];
-	  $cmp_name =~ s,[-/ ],_,g;
-	  $cmp_name =~ tr/[A-Z]/[a-z]/;
-	  #perl files should look something like the package name???
-	  ($cmp_name =~ m/$::simplename/) && do {$useful++; next};
-	   last CASE;
-      }
-  }
+	$#sort_list == 1 && do {
+	    $useful=1;
+	    last CASE;
+	};
+	while (1) {
+	    $useful==$#sort_list and last CASE;
+	    #non perl files in the list must be there for some reason
+	    ($sort_list[$useful+1] =~ m/\.p(od|m|l)$/) or do {$useful++; next};
+	    my $cmp_name=$sort_list[$useful+1];
+	    $cmp_name =~ s,[-/ ],_,g;
+	    $cmp_name =~ tr/[A-Z]/[a-z]/;
+	    #perl files should look something like the package name???
+	    ($cmp_name =~ m/$::simplename/) && do {$useful++; next};
+	    last CASE;
+	}
+    }
     $#sort_list = $useful;
 
     print STDERR "Description file list is as follows:\n  " ,
-        join ("\n  ", @sort_list), "\n" if $self->{'verbose'};
+      join ("\n  ", @sort_list), "\n" if $self->{'verbose'};
 
     #FIXME: ref return would be more efficient
     return \@sort_list;
@@ -1319,7 +1350,6 @@ sub ProcessFileNames {
 # runs through a list of files to see if they are there and reads in a
 # description if one of them is.
 
-
 sub CheckFilesForDesc {
 
     my $doc_list=&ProcessFileNames;
@@ -1328,17 +1358,17 @@ sub CheckFilesForDesc {
     my $desc;
 
   FILE: foreach my $filename ( @$doc_list ){
-      -e $filename or 
+	-e $filename or 
 	  do {print STDERR "no $filename file" if $self->{'verbose'};
 	      next FILE};
-      $filename =~ m/\.p(od|m|l)$/ && do  {
-	  $desc=$self->CheckPerlProgForDesc($filename);
-	  $desc && last FILE;
-	  next FILE;
-      };
-      $desc=$self->CheckDocFileForDesc($filename);
-      last FILE if $desc;
-  }
+	$filename =~ m/\.p(od|m|l)$/ && do  {
+	    $desc=$self->CheckPerlProgForDesc($filename);
+	    $desc && last FILE;
+	    next FILE;
+	};
+	$desc=$self->CheckDocFileForDesc($filename);
+	last FILE if $desc;
+    }
     return $desc;
 }
 
@@ -1349,77 +1379,76 @@ sub CheckFilesForDesc {
 #build directory after a setup.
 
 sub AutoDesc {
-  my $self = shift;
-  my $desc = "";
-  print STDERR "Hunting for files in distribution\n" if $self->{'verbose'};
+    my $self = shift;
+    my $desc = "";
+    print STDERR "Hunting for files in distribution\n" if $self->{'verbose'};
 
-  #Files for use for a description.  Names are relative to package
-  #base.  Are there more names which work good?  BLURB?  INTRO?
+    #Files for use for a description.  Names are relative to package
+    #base.  Are there more names which work good?  BLURB?  INTRO?
 
-  my (@doc_list) = ( "README", "DESCRIPTION" );
+    my (@doc_list) = ( "README", "DESCRIPTION" );
 
-  my $dirpref =Cwd::cwd();
+    my $dirpref =Cwd::cwd();
 
-  my $handler=sub {
-    m/\.p(od|m|l)$/ or return;
-    my $name=$File::Find::name;
-    $name =~ s/^$dirpref//;
-    push @doc_list, $name;
-  };
-  &File::Find::find($handler, '.');
+    my $handler=sub {
+	m/\.p(od|m|l)$/ or return;
+	my $name=$File::Find::name;
+	$name =~ s/^$dirpref//;
+	push @doc_list, $name;
+    };
+    &File::Find::find($handler, '.');
 
-  $desc=$self->CheckFilesForDesc(\@doc_list);
+    $desc=$self->CheckFilesForDesc(\@doc_list);
 
-  unless ( $desc ) {
-    warn "Failed to generate any descripiton for"
-      . $self->{'package-name'} . ".\n";
-    return undef;
-  }
+    unless ( $desc ) {
+	warn "Failed to generate any descripiton for"
+	  . $self->{'package-name'} . ".\n";
+	return undef;
+    }
 
-  #FIXME: what's the best way to clean up whitespace?  Is it needed at all?
-  #bear in mind that both perl descriptions and rpm special case
-  #indentation with white space to mean something like \verbatim
+    #FIXME: what's the best way to clean up whitespace?  Is it needed at all?
+    #bear in mind that both perl descriptions and rpm special case
+    #indentation with white space to mean something like \verbatim
 
-  $desc=~s/^[\t ]*//mg;		#space at the start of lines
-  $desc=~s/[\t ]*$//mg;		#space at the end of lines
-  $desc=~s/^[_\W]*//s; #blank / punctuation lines at the start 
-    $desc=~s/\s*$//;		#blank lines at the end.
+    $desc=~s/^[\t ]*//mg;	#space at the start of lines
+    $desc=~s/[\t ]*$//mg;	#space at the end of lines
+    $desc=~s/^[_\W]*//s; #blank / punctuation lines at the start  
+      $desc=~s/\s*$//;		#blank lines at the end.
 
-  #Simple cleanup of PODisms
-  $desc=~s/(^|\s)[A-Z]<([^>]+)>/$1$2/g;
+    #Simple cleanup of PODisms
+    $desc=~s/(^|\s)[A-Z]<([^>]+)>/$1$2/g;
 
-  $self->{"description"}=$desc;
-  return 1;
+    $self->{"description"}=$desc;
+    return 1;
 }
 
 #AutoDocs is a method which reads through the package and generates a
 #documentation list.
 
 sub AutoDocs() {
-  my $self = shift;
-  my $old_dir = Cwd::cwd();
-  my @docs = ();
-  my $return="";
-  eval {
-    my $dir =  $self->{'build_dir'} . '/' . $self->{'setup-dir'};
-    print STDERR "Changing directory to $dir\n" if $self->{'verbose'};
-    chdir $dir || die "Failed to chdir to $dir: $!";
-    opendir (BASEDIR , ".") || die "can't open package main directory $!";
-    my @files=readdir (BASEDIR);
-    @docs= grep {m/(^README)|(^COPYING$)|(^doc(s|u.*)?)/i} @files;
-    print STDERR "Found the following documentation files\n" ,
-      join ("  " , @docs ), "\n" if $self->{'verbose'};
-    foreach my $doc (@docs) {
-#      $return .= "\%doc " . $self->{'setup-dir'} . '/' . $doc . "\n";
-      $return .= "\%doc " . $doc . "\n";
-    }
-  };
-  my $status = $@;
-  chdir $old_dir;
-  die $@ if $status;
-  return $return;
+    my $self = shift;
+    my $old_dir = Cwd::cwd();
+    my @docs = ();
+    my $return="";
+    eval {
+	my $dir =  $self->{'build_dir'} . '/' . $self->{'setup-dir'};
+	print STDERR "Running AutoDocs() in directory $dir\n" if $self->{'verbose'};
+	chdir $dir || die "Failed to chdir to $dir: $!";
+	opendir (BASEDIR , ".") || die "can't open package main directory $!";
+	my @files=readdir (BASEDIR);
+	@docs= grep {m/(^README)|(^COPYING$)|(^doc(s|u.*)?)/i} @files;
+	print STDERR "Found the following documentation files\n" ,
+	  join ("  " , @docs ), "\n" if $self->{'verbose'};
+	foreach my $doc (@docs) {
+	    #      $return .= "\%doc " . $self->{'setup-dir'} . '/' . $doc . "\n";
+	    $return .= "\%doc " . $doc . "\n";
+	}
+    };
+    my $status = $@;
+    chdir $old_dir;
+    die $@ if $status;
+    return $return;
 }
-
 
 
 # CheckRPMDataVersion
@@ -1436,45 +1465,50 @@ sub AutoDocs() {
 #be efficient
 
 {
-     my %CheckRPMDataVersionResult=();
-     sub CheckRPMDataVersion ($) {
-	 my $RPMDataVersion=0.001; #the minimum version???
-	 my $dir=shift;
-	 ($dir =~ m,^/,) or ($dir= Cwd::cwd() . '/' . $dir);
-	 return $CheckRPMDataVersionResult{$dir}
-	     if defined $CheckRPMDataVersionResult{$dir};
-	 #only called if there is?
-	 -d $dir or warn "No RPM data dir";
-	 my $vfile=$dir . '/VERSION';
-	 -e $vfile && do {
-	     my $fh = Symbol::gensym();
-	     open ($fh, $vfile ) || die "Failed to open rpm data version file " .
-		     $vfile . ": $!";
-	     my ($suggest, $require);
-	     while (<$fh>) {
-		 ( ($require) = m/^REQUIRES:\s*(\S+)/ ) && do {
-		     die "Required version found but not positive number"
-			 unless $require =~ m/^\d+\.?\d*$/ ;
-		     if ($require > $RPMDataVersion) {
-			 die <<END
-     RPM data dir is too new.  You must upgrade makerpm.
-     (Required version in $vfile is $require, makerpm data version is $RPMDataVersion.)
+    my $verbose=1;		# we should really objectify this.. 
+    my %CheckRPMDataVersionResult=();
+    sub CheckRPMDataVersion ($) {
+	my $RPMDataVersion=0.001; #the minimum version???
+	my $dir=shift;
+	($dir =~ m,^/,) or ($dir= Cwd::cwd() . '/' . $dir);
+	print STDERR "checking RPM Data Version in $dir\n" if $verbose;
+	return $CheckRPMDataVersionResult{$dir}
+	  if defined $CheckRPMDataVersionResult{$dir};
+	#only called if there is?
+	-d $dir or warn "No RPM data dir";
+	my $vfile=$dir . '/VERSION';
+	if ( -e $vfile ) {
+	    my $fh = Symbol::gensym();
+	    open ($fh, $vfile ) || die "Failed to open rpm data version file " .
+	      $vfile . ": $!";
+	    my ($suggest, $require);
+	    while (<$fh>) {
+		( ($require) = m/^REQUIRES:\s*(\S+)/ ) && do {
+		    die "Required version found but not positive number"
+		      unless $require =~ m/^\d+\.?\d*$/ ;
+		    if ($require > $RPMDataVersion) {
+			print STDERR <<END ;
+Required version in $vfile is $require, makerpm data version is $RPMDataVersion.
 END
-       ;
-		     }
-		 };
-		 ( ($suggest) = m/^SUGGESTS:\s*(\S*)/ ) && do {
-		     die "Suggested version found but not positive number"
-			 unless $suggest =~ m/^\d+\.?\d*$/ ;
-		     warn "RPM data dir is newer than makerpm. Consider upgrade"
-			 if $suggest > $RPMDataVersion;
-		 };
-     #	    ( $compatible = m/^COMPATIBLE:\s*(\S*)/ ) && do {};
-	     }
-	     close($fh) or die "Failed to close " . $vfile .  ": $!";
-	 };
-	 return $CheckRPMDataVersionResult{$dir}=$RPMDataVersion;
-     }
+			die "RPM data dir is too new.  You must upgrade makerpm.";
+		    }
+		};
+		( ($suggest) = m/^SUGGESTS:\s*(\S*)/ ) && do {
+		    die "Suggested version found but not positive number"
+		      unless $suggest =~ m/^\d+\.?\d*$/ ;
+		    warn "RPM data dir is newer than makerpm. Try to upgrade if you can"
+		      if $suggest > $RPMDataVersion;
+		};
+		#	    ( $compatible = m/^COMPATIBLE:\s*(\S*)/ ) && do {};
+	    }
+	    $require = 0 unless defined $require ;
+	    print STDERR "RPM data version $require; we have $RPMDataVersion; okay\n";
+	    close($fh) or die "Failed to close " . $vfile .  ": $!";
+	    return $CheckRPMDataVersionResult{$dir}=$RPMDataVersion;
+	} else { 
+	    print STDERR "no version file found; continue happily\n" if $verbose;
+	}
+    }
 }
 
 sub ReadFile {
@@ -1482,9 +1516,9 @@ sub ReadFile {
     my $filepath=shift;
     my $fh = Symbol::gensym();
     open ($fh, $filepath) || die "Failed to open file " .
-	    $filepath . ": $!";
+      $filepath . ": $!";
     print STDERR "Reading ". $filepath ."\n"
-	if $self->{'verbose'};
+      if $self->{'verbose'};
     my $returnme="";
     while (<$fh>) {
 	$returnme .= $_;
@@ -1502,10 +1536,10 @@ sub ReadDescription {
     my $descfile=shift;
     my $fh = Symbol::gensym();
     open ($fh, $descfile )
-	|| die "Failed to open description file " .
-	    $descfile . ": $!";
+      || die "Failed to open description file " .
+	$descfile . ": $!";
     print STDERR "Reading description from ". $descfile ."\n"
-	if $self->{'verbose'};
+      if $self->{'verbose'};
     $self->{"description"}="";
     while (<$fh>) {
 	$self->{"description"} .= $_;
@@ -1513,13 +1547,11 @@ sub ReadDescription {
     close($fh) or die "Failed to close " . $descfile .  ": $!";
 }
 
-
 #Description -  drive the hunt for description information
 #
 #expects build to have already been done.  Anything else would be an
 #internal error.
 #
-
 
 sub Description {
     my $self = shift;
@@ -1530,61 +1562,61 @@ sub Description {
       unless $self->{"built-dir"};
     eval {
 	my $dir =  $self->{"built-dir"};
-	print STDERR "Changing directory to $dir\n" if $self->{'verbose'};
+	print STDERR "Running Description() in directory $dir\n" if $self->{'verbose'};
 	chdir $dir || die "Failed to chdir to $dir: $!";
       CASE: {
-	  my $pkg_own_desc = $self->{"rpm-data-dir"} . "/" . $descfilename;
+	    my $pkg_own_desc = $self->{"rpm-data-dir"} . "/" . $descfilename;
 
-	  #case 1 - a file explicitly provided by the user
-	  $self->{"desc-file"} && do {
-	      my $descfile = $self->{"desc-file"};
-	      -e $descfile or die "File " . $descfile . " doesn't exist";
-	      -e $pkg_own_desc
+	    #case 1 - a file explicitly provided by the user
+	    $self->{"desc-file"} && do {
+		my $descfile = $self->{"desc-file"};
+		-e $descfile or die "File " . $descfile . " doesn't exist";
+		-e $pkg_own_desc
 		  and warn "Overriding " . $self->{"package-name"}
-	          . "packages own description.  Maybe new?";
-	      $self->ReadDescription($descfile);
-	      last CASE;
-	  };
+		    . "packages own description.  Maybe new?";
+		$self->ReadDescription($descfile);
+		last CASE;
+	    };
 
-	  #case 2 - a file provided in the data-dir by the user
-	  $self->{"user-data-dir"} && do {
-	      CheckRPMDataVersion($self->{"user-data-dir"});
-	      print STDERR "Checking for desc file in given data directory\n"
+	    #case 2 - a file provided in the data-dir by the user
+	    $self->{"user-data-dir"} && do {
+		CheckRPMDataVersion($self->{"user-data-dir"});
+		print STDERR "Checking for desc file in given data directory\n"
 		  if $self->{'verbose'};
-	      my $descfile = $self->{'user-data-dir'} . '/'
+		my $descfile = $self->{'user-data-dir'} . '/'
 		  . $self->{"package-name"} . '/' . $descfilename;
-	      -e $descfile && do {
-		  -e $pkg_own_desc
+		-e $descfile && do {
+		    -e $pkg_own_desc
 		      and warn "Overriding " . $self->{"package-name"}
-		  . "packages own description.  Maybe new?";
-		  my $fh = Symbol::gensym();
-		  $self->ReadDescription($descfile);
-		  last CASE;
-	      };
-	      print STDERR "No description file in data-dir\n"
+			. "packages own description.  Maybe new?";
+		    my $fh = Symbol::gensym();
+		    $self->ReadDescription($descfile);
+		    last CASE;
+		};
+		print STDERR "No description file in data-dir\n"
 		  if $self->{'verbose'};
-	  };
+	    };
 
-	  #case 3 - a file provided by the package author
-	  -e $pkg_own_desc && do {
-	      CheckRPMDataVersion($self->{"rpm-data-dir"});
-	      print STDERR "Checking for desc file in rpm's data directory\n"
+	    #case 3 - a file provided by the package author
+	    -e $pkg_own_desc && do {
+		CheckRPMDataVersion($self->{"rpm-data-dir"});
+		print STDERR "Checking for desc file in rpm's data directory\n"
 		  if $self->{'verbose'};
-	      $self->ReadDescription($pkg_own_desc);
-	      last CASE;
-	  };
+		$self->ReadDescription($pkg_own_desc);
+		last CASE;
+	    };
 
-	  #case 4 - try to build a description automatically
-	  $self->{"auto-desc"} && do {
-	      $self->AutoDesc() and last CASE;
-	  };
+	    #case 4 - try to build a description automatically
+	    $self->{"auto-desc"} && do {
+		$self->AutoDesc() and last CASE;
+	    };
 
-	  warn "failed to find description for " . $self->{"package-name"};
-      }
+	    warn "failed to find description for " . $self->{"package-name"};
+	}
     };
     my $status = $@;
     chdir $old_dir;
-    die $@ if $status;
+    die if $status;
 }
 
 sub ReadRequires {
@@ -1592,12 +1624,12 @@ sub ReadRequires {
     my $reqfile=shift;
     my $fh = Symbol::gensym();
     open ($fh, $reqfile )
-	|| die "Failed to open description file " .
-	    $reqfile . ": $!";
+      || die "Failed to open description file " .
+	$reqfile . ": $!";
     print STDERR "Reading description from ". $reqfile ."\n"
-	if $self->{'verbose'};
+      if $self->{'verbose'};
     while (<$fh>) {
-	s/(^|\s)#.*//; #delete comments
+	s/(^|\s)#.*//; 		#delete comments
 	foreach my $req (m/(?:(\S+)\s)/g) {
 	    push @{$self->{'require'}}, $req;
 	}
@@ -1619,46 +1651,46 @@ sub Requires {
 
     eval {
 	my $dir =  $self->{'built-dir'};
-	print STDERR "Changing directory to $dir\n" if $self->{'verbose'};
+	print STDERR "Running Requires in directory $dir\n" if $self->{'verbose'};
 	chdir $dir || die "Failed to chdir to $dir: $!";
       CASE: {
-	  my $pkg_own_req = $self->{"rpm-data-dir"} . "/" . $reqfilename;
+	    my $pkg_own_req = $self->{"rpm-data-dir"} . "/" . $reqfilename;
 
-	  #case 1 does not exist
-	  #requires provided on the command line are additive.
+	    #case 1 does not exist
+	    #requires provided on the command line are additive.
 
-	  #case 2 - a file provided in the data-dir by the user
-	  $self->{"user-data-dir"} && do {
-	      CheckRPMDataVersion($self->{"user-data-dir"});
-	      print STDERR "Checking for requires file in given data directory\n"
+	    #case 2 - a file provided in the data-dir by the user
+	    $self->{"user-data-dir"} && do {
+		CheckRPMDataVersion($self->{"user-data-dir"});
+		print STDERR "Checking for requires file in given data directory\n"
 		  if $self->{'verbose'};
-	      my $reqfile = $self->{'user-data-dir'} . '/'
+		my $reqfile = $self->{'user-data-dir'} . '/'
 		  . $self->{"package-name"} . '/' . $reqfilename;
-	      -e $reqfile && do {
-		  -e $pkg_own_req
+		-e $reqfile && do {
+		    -e $pkg_own_req
 		      and warn "Overriding " . $self->{"package-name"}
-		  . "packages own requires list.  Maybe new?";
-		  my $fh = Symbol::gensym();
-		  $self->ReadRequires($reqfile);
-		  last CASE;
-	      };
-	      print STDERR "No description file in data-dir\n"
+			. "packages own requires list.  Maybe new?";
+		    my $fh = Symbol::gensym();
+		    $self->ReadRequires($reqfile);
+		    last CASE;
+		};
+		print STDERR "No description file in data-dir\n"
 		  if $self->{'verbose'};
-	  };
+	    };
 
-	  #case 3 - a file provided by the package author
-	  -e $pkg_own_req && do {
-	      CheckRPMDataVersion($self->{"rpm-data-dir"});
-	      print STDERR "Checking for requires file in rpm's data directory\n"
+	    #case 3 - a file provided by the package author
+	    -e $pkg_own_req && do {
+		CheckRPMDataVersion($self->{"rpm-data-dir"});
+		print STDERR "Checking for requires file in rpm's data directory\n"
 		  if $self->{'verbose'};
-	      $self->ReadRequires($pkg_own_req);
-	      last CASE;
-	  };
+		$self->ReadRequires($pkg_own_req);
+		last CASE;
+	    };
 
-	  #case 4 - try to build requires automatically
-	  #also doesn't exist.  This is the job of RPM.
+	    #case 4 - try to build requires automatically
+	    #also doesn't exist.  This is the job of RPM.
 
-      }
+	}
     };
     my $status = $@;
     chdir $old_dir;
@@ -1672,47 +1704,47 @@ sub Requires {
 #
 
 sub ReadConfigFile {
-  my $self=shift;
-  my $filename=shift;
-  my $old_dir = Cwd::cwd();
-  my $returnme=undef;
-  eval {
-    my $dir =  $self->{'built-dir'};
-    print STDERR "Changing directory to $dir\n" if $self->{'verbose'};
-    chdir $dir || die "Failed to chdir to $dir: $!";
-    my $pkg_own_file = $self->{"rpm-data-dir"} . "/" . $filename;
+    my $self=shift;
+    my $filename=shift;
+    my $old_dir = Cwd::cwd();
+    my $returnme=undef;
+    eval {
+	my $dir =  $self->{'built-dir'};
+	print STDERR "ReadConfigFile in $dir\n" if $self->{'verbose'};
+	chdir $dir || die "Failed to chdir to $dir: $!";
+	my $pkg_own_file = $self->{"rpm-data-dir"} . "/" . $filename;
 
-    #a file provided in the data-dir by the user
-    $self->{"user-data-dir"} && do {
-      CheckRPMDataVersion($self->{"user-data-dir"});
-      print STDERR "Checking for $filename in given data directory\n"
-	if $self->{'verbose'};
-      my $user_file = $self->{'user-data-dir'} . '/'
-	. $self->{"package-name"} . '/' . $filename;
-      -e $user_file && do {
-	-e $pkg_own_file
-	  and warn "Overriding " . $self->{"package-name"}
-	    . "packages own file $pkg_own_file.  Maybe new?";
-	$returnme = $self->ReadFile($user_file);
-      };
-      print STDERR "No override file in data-dir\n"
-	if ($self->{'verbose'} and not defined $returnme);
+	#a file provided in the data-dir by the user
+	$self->{"user-data-dir"} && do {
+	    CheckRPMDataVersion($self->{"user-data-dir"});
+	    print STDERR "Checking for $filename in given data directory\n"
+	      if $self->{'verbose'};
+	    my $user_file = $self->{'user-data-dir'} . '/'
+	      . $self->{"package-name"} . '/' . $filename;
+	    -e $user_file && do {
+		-e $pkg_own_file
+		  and warn "Overriding " . $self->{"package-name"}
+		    . "packages own file $pkg_own_file.  Maybe new?";
+		$returnme = $self->ReadFile($user_file);
+	    };
+	    print STDERR "No override file in data-dir\n"
+	      if ($self->{'verbose'} and not defined $returnme);
+	};
+	#a file provided by the package author
+	if (-e $pkg_own_file and not defined $returnme) {
+	    CheckRPMDataVersion($self->{"rpm-data-dir"});
+	    print STDERR "Checking for file $pkg_own_file in rpm's data directory\n"
+	      if $self->{'verbose'};
+	    $returnme = $self->ReadFile($pkg_own_file);
+	}
+	print STDERR "Didn't find file matching $filename.\n"
+	  if ( $self->{'verbose'} and not defined $returnme );
     };
-    #a file provided by the package author
-    if (-e $pkg_own_file and not defined $returnme) {
-      CheckRPMDataVersion($self->{"rpm-data-dir"});
-      print STDERR "Checking for file $pkg_own_file in rpm's data directory\n"
-	if $self->{'verbose'};
-      $returnme = $self->ReadFile($pkg_own_file);
-    }
-    print STDERR "Didn't find file matching $filename.\n"
-      if ( $self->{'verbose'} and not defined $returnme );
-  };
-  my $status = $@;
-  chdir $old_dir;
-  die $@ if $status;
-  $returnme = "" unless defined $returnme;
-  return $returnme;
+    my $status = $@;
+    chdir $old_dir;
+    die $@ if $status;
+    $returnme = "" unless defined $returnme;
+    return $returnme;
 }
 
 sub Specs {
@@ -1720,16 +1752,15 @@ sub Specs {
     my $old_dir = Cwd::cwd();
     eval {
 
-      # We want to do a build so that the package author has the
-      # chance to create any dynamic data he wants us to be able to be
-      # able to see such as platform specific scripts or text
-      # format documentation derived from something else.
+	# We want to do a build so that the package author has the
+	# chance to create any dynamic data he wants us to be able to be
+	# able to see such as platform specific scripts or text
+	# format documentation derived from something else.
 
-     unless ( $self->{"built-dir"} ) {
-	$self->Prep();
-	$self->Build();
-      }
-
+	unless ( $self->{"built-dir"} ) {
+	    $self->Prep();
+	    $self->Build();
+	}
 
 
 	$self->Description();
@@ -1738,11 +1769,12 @@ sub Specs {
 	#FIXME check what side effects install has... hmm get rid of them
 	#if they are important.
 	my $filelist;
-      #where is this file going anyway???
+	#where is this file going anyway???
 	$filelist = $self->{'name'}.$self->{'version'} . '.filelist'
 	  unless defined $filelist;
 
-	my($files, $dirs) = $self->Files($self->{'build-root'});
+	#not used, apparently
+	#	my($files, $dirs) = $self->Files($self->{'build-root'});
 
 	my $specs = <<"EOF";
 #Spec file created by makerpm 
@@ -1753,32 +1785,32 @@ sub Specs {
 EOF
 	my $mo = $self->{'makeopts'} || '';
 	$mo =~ s/\n\t/ /sg;
-        $specs .= sprintf("%%define makeopts \"%s\"\n",
+	$specs .= sprintf("%%define makeopts \"%s\"\n",
 			  ($mo ? sprintf("--makeopts=%s",
 					 quotemeta($mo)) : ""));
 	foreach my $opttype ("makemakeropts", "makeperlopts") {
-	  my @mmo=();
-	CASE:{ 
-	    ($#{$self->{"$opttype"}} > -1) and do {
-	      foreach my $opt (@{$self->{"$opttype"}}) {
-	      # $mmo =~ s/\n\t/ /sg; #allow through newlines???
-		$opt=quotemeta(quotemeta $opt);
-		$opt= "--$opttype=" . $opt ;
-		push @mmo, $opt;
-	      }
-	      $specs .= "%define $opttype ".join (" ",@mmo). " \n";
-	      last;
-	    };
-	    $specs .= "%define $opttype \"\"\n";
-	  }
+	    my @mmo=();
+	  CASE:{ 
+		($#{$self->{"$opttype"}} > -1) and do {
+		    foreach my $opt (@{$self->{"$opttype"}}) {
+			# $mmo =~ s/\n\t/ /sg; #allow through newlines???
+			$opt=quotemeta(quotemeta $opt);
+			$opt= "--$opttype=" . $opt ;
+			push @mmo, $opt;
+		    }
+		    $specs .= "%define $opttype ".join (" ",@mmo). " \n";
+		    last;
+		};
+		$specs .= "%define $opttype \"\"\n";
+	    }
 	}
 
 	my $setup_dir = $self->{'setup-dir'} eq $self->{'default_setup_dir'} ?
-	    "" : " --setup-dir=$self->{'setup-dir'}";
+	  "" : " --setup-dir=$self->{'setup-dir'}";
 
 	my $makerpm_path = File::Spec->catdir('$RPM_SOURCE_DIR', 'makerpm.pl');
 	$makerpm_path = File::Spec->canonpath($makerpm_path) . $setup_dir .
-	    " --source=$self->{'source'}";
+	  " --source=$self->{'source'}";
 
 	$self->{"description"} = $self->{'summary'}
 	  unless $self->{'description'};
@@ -1799,15 +1831,14 @@ Provides:  $prefix%{packagename}
 Summary:   $self->{'summary'}
 EOF
 
-#this is something added to mirror the RedHat generated spec files..
-#I think it makes sense, though maybe the version number is too
-#strict?? - Michael
+	#this is something added to mirror the RedHat generated spec files..
+	#I think it makes sense, though maybe the version number is too
+	#strict?? - Michael
 
 	$specs .= <<"EOF" if $self->{"rpm-version"} > 4;
 BuildRequires: perl >= 5.6
 Requires: perl >= 5.6
 EOF
-
 
 	if (my $req = $self->{'require'}) {
 	    $specs .= "Requires: " . join(" ", @$req) . "\n";
@@ -1819,27 +1850,28 @@ EOF
 	#non root then we can't do chowns (on any civilised operating
 	#system ;-) so we have to fix the ownership with a command.
 
-        # This is a warning becuase there might be modules which might
-        # install their own userid for security reasons or set files
-        # to other ownership's deliberately.  It is the responsibility
-        # of the packager to be aware of this.
+	# This is a warning becuase there might be modules which might
+	# install their own userid for security reasons or set files
+	# to other ownership's deliberately.  It is the responsibility
+	# of the packager to be aware of this.
 
 	my $defattr;
-	if ($self->{'defattr'}) { 	$defattr="" }
-	else {
-	  warn "using Defattr to force all files to root ownership\n";
-	  $defattr = "%defattr(-,root,root)";
+	if ($self->{'defattr'}) {
+	    $defattr="";
+	} else {
+	    warn "using Defattr to force all files to root ownership\n";
+	    $defattr = "%defattr(-,root,root)";
 	}
 
-        use vars qw/$prep_script $build_script $install_script
-                    $clean_script $pre_script $post_script
-                    $preun_script $postun_script $verify_script/;
+	use vars qw/$prep_script $build_script $install_script
+		    $clean_script $pre_script $post_script
+		    $preun_script $postun_script $verify_script/;
 	my @scripts = ("prep", "build", "install", "clean", "pre",
-		    "post","preun", "postun", "verify" );
+		       "post","preun", "postun", "verify" );
 	foreach my $script ( @scripts ) {
-	  no strict "refs"; #makes for an easier life..
-	  my $var = $script . "_script";
-	  $$var = $self->ReadConfigFile($script . ".sh") ;
+	    no strict "refs";	#makes for an easier life..
+	    my $var = $script . "_script";
+	    $$var = $self->ReadConfigFile($script . ".sh") ;
 	}
 
 	my $doclist = $self->ReadConfigFile("docfiles") ;
@@ -1863,12 +1895,12 @@ EOF
 %prep
 EOF
 
-	    $specs .= <<"EOF" ;
+	$specs .= <<"EOF" ;
 %setup -q -n $self->{'setup-dir'}
 EOF
-	    #FIXME we haven't actually checked that a file would be removed
-	    #so this might give an error at prep time?
-            $specs .= <<"EOF" if $self->{'rm-files'};
+	#FIXME we haven't actually checked that a file would be removed
+	#so this might give an error at prep time?
+	$specs .= <<"EOF" if $self->{'rm-files'};
 find $self->{'setup-dir'} -regex '$self->{'rm-files'} ' -print0 | xargs -0 rm
 EOF
 	$specs .= <<"EOF" ;
@@ -1878,9 +1910,9 @@ $prep_script
 %build
 EOF
 
-#we put LANG=C becuase perl 5.8.0 on RH 9 doesn't create makefiles otherwise.  
-#this should be made conditional in the case where perl starts working with 
-#unicode languages..
+	#we put LANG=C becuase perl 5.8.0 on RH 9 doesn't create makefiles otherwise.  
+	#this should be made conditional in the case where perl starts working with 
+	#unicode languages..
 	$specs .= "export LANG=C\n";
 	$specs .= 'CFLAGS="$RPM_OPT_FLAGS" perl ';
 	$specs .= '%{makeperlopts} ' if @{$self->{'makeperlopts'}};
@@ -1982,10 +2014,18 @@ EOF
 	    (print $fh $specs) or die "Failed to write to $specs_file: $!";
 	    close($fh) or die "Failed to close $specs_file: $!";
 	}
+	if ( -e $self->{'rpm-source-dir'} . "/" . $self->{'source'} ) {
+	    print STDERR "copy source file " . $self->{'source'} . " to " . 
+	      $self->{'rpm-source-dir'} . "\n";
+	    print STDERR "then";
+	} else {
+	    print STDERR "now";
+	}
+	print STDERR "run `rpmbuild -ba $specs_file' to create an rpm\n";
     };
     my $status = $@;
     chdir $old_dir;
-    die $status if $status;
+    die if $status;
 }
 
 sub PPM {
@@ -2002,19 +2042,19 @@ sub new {
     my $self = $proto->SUPER::new(@_);
     $self->{'ppm-dir'} ||= Cwd::cwd();
     $self->{'ppm-ppdfile'} ||=
-	$self->{'ppm-noversion'} ?
-	    "$self->{'package-name'}.ppd" :
-	    "$self->{'package-name'}-$self->{'package-version'}.ppd";
+      $self->{'ppm-noversion'} ?
+	"$self->{'package-name'}.ppd" :
+	  "$self->{'package-name'}-$self->{'package-version'}.ppd";
     if (!$self->{'ppm-ppmfile'}) {
 	my($base, $dir, $suffix) =
-	    File::Basename::fileparse($self->{'ppm-ppdfile'}, "\.ppd");
+	  File::Basename::fileparse($self->{'ppm-ppdfile'}, "\.ppd");
 	die("Failed to create name PPM file name from PPD file name ",
 	    $self->{'ppm-ppdfile'}) unless $suffix;
 	$self->{'ppm-ppmfile'} =
-	    $self->{'ppm-noversion'} ?
-		"$base.tar.gz" :
-		File::Spec->catfile($dir, "x86",
-				    "$base.tar.gz");
+	  $self->{'ppm-noversion'} ?
+	    "$base.tar.gz" :
+	      File::Spec->catfile($dir, "x86",
+				  "$base.tar.gz");
     }
     $self;
 }
@@ -2027,7 +2067,7 @@ sub MakePPD {
     my $self = shift;
     my $dir = File::Spec->catdir($self->{'build_dir'},
 				 $self->{'setup-dir'});
-    print STDERR "Changing directory to $dir\n" if $self->{'verbose'};
+    print STDERR "MakePPD in $dir\n" if $self->{'verbose'};
     chdir $dir || die "Failed to chdir to $dir: $!";
     my $command = "$self->{'make'} ppd " . ($self->{'makeopts'} || '');
     print STDERR "Running Make PPD: $command\n";
@@ -2035,44 +2075,44 @@ sub MakePPD {
     my $fh = Symbol::gensym();
     my $ppd_name = "$self->{'package-name'}.ppd";
     open($fh, "<$ppd_name") ||
-	die "Failed to open generated PPD file $ppd_name: $!";
+      die "Failed to open generated PPD file $ppd_name: $!";
     local $/ = undef;
     my $ppd_contents = <$fh>;
     die "Failed to read generated PPD file $ppd_name: $!"
-	unless defined $ppd_contents;
+      unless defined $ppd_contents;
 
     $ppd_contents =~ s/(\<codebase href=\").*(\")/$1$self->{'ppm-ppmfile'}$2/i; #"
 
     $ppd_name = $self->{'ppm-ppdfile'};
     $ppd_name = File::Spec->catdir($self->{'ppm-dir'}, $ppd_name)
-	unless File::Spec->file_name_is_absolute($ppd_name);
+      unless File::Spec->file_name_is_absolute($ppd_name);
     print STDERR "Creating PPD file $ppd_name.\n";
     $self->MakeDirFor($ppd_name);
     $fh = Symbol::gensym();
     (open($fh, ">$ppd_name") &&  (print $fh $ppd_contents)  &&  close($fh))  ||
-	die "Failed to create PPD file $ppd_name: $!";
+      die "Failed to create PPD file $ppd_name: $!";
 }
 
 sub MakePPM {
     my $self = shift;
     my $ppm_file = $self->{'ppm-ppmfile'};
     $ppm_file = File::Spec->catdir($self->{'ppm-dir'}, $ppm_file)
-	unless File::Spec->file_name_is_absolute($ppm_file);
+      unless File::Spec->file_name_is_absolute($ppm_file);
     print STDERR "Creating PPM file $ppm_file.\n";
     $self->MakeDirFor($ppm_file);
     eval { require Archive::Tar; require Compress::Zlib; };
     if ($@) {
 	# Archive::Tar is not available; fallback to tar and gzip
 	my $command = $^O eq "MSWin32" ?
-	    "tar czf $ppm_file blib" :
+	  "tar czf $ppm_file blib" :
 	    "tar czf - blib | gzip -c >$ppm_file 2>&1";
 	print STDERR "Creating PPM file: $command\n" if $self->{'verbose'};
 	$command .= " 2>&1" unless $^O eq "MSWin32";
 	my $output = `$command 2>&1`;
 	die "Archive::Tar and Compress::Zlib are not available\n"
-	    . " and using tar failed.\n"
+	  . " and using tar failed.\n"
 	    . " Command was: $command\n"
-	    . " Output was: $output\n"
+	      . " Output was: $output\n"
 		if $output;
     } else {
 	my @files;
@@ -2116,7 +2156,7 @@ sub Usage {
     my $start_perl = substr($Config::Config{'startperl'}, 2);
 
     my ($rpm_source_dir, $rpm_build_dir, $rpm_specs_dir) =
-	Distribution::RPM->init_directories(1);
+      Distribution::RPM->init_directories(1);
 
     print <<EOF;
 Usage: $0 <action> [options]
@@ -2214,7 +2254,7 @@ EOF
 
 {
     my $chown; 
-    $chown = ( $> ? 0 : 1 ); #chown is default if running as root.
+    $chown = ( $> ? 0 : 1 );	#chown is default if running as root.
     my %o = ( 'auto-desc' => 1, 'chown' => $chown , 'defattr' => 1, 
 	      'name-prefix' => 1, 'makeperlopts' => [], 
 	      'makemakeropts' => []);
@@ -2237,16 +2277,18 @@ EOF
 			     'summary=s',
 			     'verbose', 'version', 'rpm-version=s');
     Usage() if $o{'help'};
-    if ($o{'version'}) { print "$VERSTR\n"; exit 1}
+    if ($o{'version'}) {
+	print "$VERSTR\n"; exit 1;
+    }
     $o{'verbose'} = 1 if $o{'debug'};
 
     #trap this now so it's the primary error
-#    die "You must give an action; --prep, --build, --install or --specs\n"
-#	unless $o{'specs'}||$o{'prep'}||$o{'build'}||$o{'install'};
+    #    die "You must give an action; --prep, --build, --install or --specs\n"
+    #	unless $o{'specs'}||$o{'prep'}||$o{'build'}||$o{'install'};
 
     die "You must give the package filename in the --source option.\n"
-	if ((exists $o{'specs'} || exists $o{'prep'}) and
-	    not exists $o{'source'});
+      if ((exists $o{'specs'} || exists $o{'prep'}) and
+	  not exists $o{'source'});
 
     my $class;
     $o{'mode'} ||= Mode();
@@ -2259,7 +2301,7 @@ EOF
     }
 
     my $self;
-    eval { #trap for nicer errors
+    eval {			#trap for nicer errors
 	$self = $class->new(%o);
     } || do {
 	$@ =~ m/Missing package name/ && do {
@@ -2362,7 +2404,6 @@ And  Copyright (C) 2001  Michael De La Rue with the same terms.
 This file is available as a CPAN script. The following subsections are
 for CPAN's automatic link generation and not for humans. You can safely
 ignore them.
-
 
 =head2 SCRIPT CATEGORIES
 
@@ -2508,7 +2549,6 @@ If I don't respond within two weeks, feel free to increment the
 version number and release it onto CPAN.
 
 =head1 CHANGES
-
 
 2004-01-05 Michael De La Rue <mikedlr@tardis.ed.ac.uk> + Ed Avis.
 
