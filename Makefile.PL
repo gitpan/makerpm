@@ -24,6 +24,9 @@ WriteMakefile( NAME => "makerpm",
 	       VERSION_FROM => "makerpm.pl",
 	       dist => {COMPRESS => "gzip",
 			SUFFIX => "gz" },
+#I want to stop makerpm being installed as a library, but this doesn't
+#do it.. why?
+	       PMLIBDIRS => [ 'lib' ],
 	     );
 
 

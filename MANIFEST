@@ -1,6 +1,9 @@
+.cvsignore
 MANIFEST			This list of files
+MANIFEST.SKIP
 Makefile.PL
 Package-details-proposal
+Progcopy.PL
 makerpm.pl
 test-data/Getopt-Function-0.002.tar.gz
 test-data/Getopt-Function-0.003.tar.gz
@@ -8,3 +11,4 @@ test-data/Getopt-Function-0.0031.tar.gz
 test-data/Getopt-Function-0.0032.tar.gz
 test-data/Getopt-Function-0.004.tar.gz
 test.pl
+test.sh

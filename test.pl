@@ -14,7 +14,7 @@ a set of basic tests for makerpm
 
 =cut
 
-BEGIN {print "1..22\n"}
+BEGIN {print "1..23\n"}
 END {print "not ok 1\n" unless $loaded;}
 
 use warnings;
@@ -117,10 +117,17 @@ nogo unless $stat == 0; #perl die
 ok(13);
 nogo unless $out =~ m/$outre/ms;
 ok(14);
-nogo unless $out =~ m/This package contains the perl module Getopt-Function.*B\<aim\>/ms;
+
+# we need a test for insertion of the module summary in the case of
+# the description not mentioning perl modules.
+#nogo unless $out =~ m/This package contains the perl module Getopt-Function.*B\<aim\>/ms;
+
+nogo unless $out =~ m/perl/;
 ok(15);
-nogo unless -e "$base/SPECS/Getopt-Function-0.002.spec";
+nogo unless $out =~ m/module/;
 ok(16);
+nogo unless -e "$base/SPECS/Getopt-Function-0.002.spec";
+ok(17);
 
 my $rpmbuild="rpmbuild -ba";
 
@@ -128,7 +135,7 @@ $out=`$rpmbuild $base/SPECS/Getopt-Function-0.002.spec 2>&1`;
 $stat=$? >> 8;
 
 nogo unless $stat == 0; #perl die
-ok(17);
+ok(18);
 
 # should use package provided description and build to end
 
@@ -138,18 +145,18 @@ $out=`$comm`;
 $stat=$? >> 8;
 
 nogo unless $stat == 0; #perl die
-ok(18);
-nogo unless $out =~ m/$outre/ms;
 ok(19);
-nogo unless $out =~ m/Getopt::Function is an interface to Getopt::Mixed/ms;
+nogo unless $out =~ m/$outre/ms;
 ok(20);
-nogo unless -e "$base/SPECS/Getopt-Function-0.004.spec";
+nogo unless $out =~ m/Getopt::Function is an interface to Getopt::Mixed/ms;
 ok(21);
+nogo unless -e "$base/SPECS/Getopt-Function-0.004.spec";
+ok(22);
 
 $out=`$rpmbuild $base/SPECS/Getopt-Function-0.004.spec 2>&1`;
 $stat=$? >> 8;
 
 nogo unless $stat == 0; #perl die
-ok(22);
+ok(23);
 
 

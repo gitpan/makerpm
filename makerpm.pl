@@ -46,8 +46,8 @@ use Symbol;
 
 use vars qw($VERSTR $VERSION $ID);
 
-( $VERSION ) = ( $VERSTR= "makerpm 0.400 2003/06/17, (C) 1999 Jochen Wiedmann (C) 2001,2003 Michael De La Rue") =~ /([0-9]+\.[0-9]+)/;
-$ID = '$Id: makerpm.pl,v 1.23 2004/01/01 21:26:29 mikedlr Exp $';
+( $VERSION ) = ( $VERSTR= "makerpm 0.401 2004/01/05, (C) 1999 Jochen Wiedmann (C) 2001,2003,2004 Michael De La Rue") =~ /([0-9]+\.[0-9]+)/;
+$ID = '$Id: makerpm.pl,v 1.24 2004/01/05 07:31:25 mikedlr Exp $ ';
 
 =head1 NAME
 
@@ -81,14 +81,13 @@ file in F</usr/src/redhat/SOURCES> (F</usr/src/packages/SOURCES> in
 case of SuSE and F</usr/src/OpenLinux/SOURCES> in case of Caldera) and
 do a
 
-  makerpm --specs --source=<package>-<version>.tar.gz
+  makerpm --source=<package>-<version>.tar.gz
 
 This will create a SPECS file in F</usr/src/redhat/SPECS>
-(F</usr/src/packages/SOURCES> in case of SuSE and
-F</usr/src/OpenLinux/SOURCES> in case of Caldera) which you
+(F</usr/src/packages/SOURCES> in case of SuSE) which you
 can use with
 
-  rpm -ba /usr/src/redhat/SPECS/<package>-<version>.spec
+  rpmbuild -ba /usr/src/redhat/SPECS/<package>-<version>.spec
 
 If the default behaviour is fine for you, that will do. Otherwise see
 the list of options below.
@@ -96,14 +95,18 @@ the list of options below.
 
 =head2 Creating PPM packages
 
+**** I don't know if this works and can't support it - mikedlr *****
+	
 A PPM package consists of two files: The PPD (Perl Package description)
 file which contains XML source describing the package details and the
 PPM file which is nothing else than the archived blib directory.
 
 You can create the package with
 
-  makerpm --ppm --source=<package>-<version>.tar.gz
+  makerpm --ppm -E -source=<package>-<version>.tar.gz
 
+**** this feature will probably be removed soon!!! *****
+	
 =head2 Command Line Options
 
 There are many command line options.  For the most part you don't have
@@ -122,10 +125,14 @@ description below.
 
 =item --build
 
+**** this is basically an internal function *****
+	
 Compile the sources, typically by running
 
 	perl Makefile.PL
 	make
+
+**** this feature will probably be removed soon!!! *****
 
 =item --build-root=<dir>
 
@@ -155,12 +162,14 @@ Set the packages copyright message. The default is
 
   Probably the same terms as perl.  Check.
 
-You are suggested to change this to match the actual package copyright.
-
+You are suggested to change this to match the actual package
+copyright.  Code to automatically check licenses would be appreciated.
+	
 =item --nochown
 
 Setting --nochown will stop makerpm from trying to change the
-ownership of files which means that it can be run as any user. 
+ownership of files which means that it can be run as any user.  This
+is now the defautlt unless running as root.
 
 =item --data-dir=<directory>
 
@@ -190,6 +199,8 @@ Print the usage message and exit.
 
 =item --install
 
+**** this is basically an internal function *****
+
 Install the sources, typically by running
 
 	make install
@@ -198,6 +209,8 @@ Installation doesn't occur into the final destination. Instead a
 so-called buildroot directory (for example F</var/tmp/build-root>)
 is created and installation is adapted relative to that directory.
 See the I<--build-root> option for details.
+
+**** this feature will probably be removed soon!!! *****
 
 =item --make=<path>
 
@@ -235,10 +248,14 @@ possible also to run scripts etc. using this.
 
 =item --mode=<mode>
 
+**** I don't know if PPM mode works and can't support it - mikedlr *****
+	
 Set build mode, for example RPM or PPM. By default the build mode
 is read from the script name: If you invoke it as I<makerpm>, then
 RPM mode is choosen. When running as I<makeppm>, then PPM mode is
 enabled.
+
+**** this feature will probably be removed soon!!! *****
 
 =item --noname-prefix
 
@@ -259,7 +276,11 @@ Set the package name and version. These options are required for --build and
 
 =item --ppm-ppmfile
 
+**** I don't know if this works and can't support it - mikedlr *****
+
 Create PPM related files.  See B<creating PPD files> above.
+
+**** this feature will probably be removed soon!!! *****
 
 =item --prep
 
@@ -404,10 +425,13 @@ you have to create your own directories.
 
 =head1 AUTOMATIC FUNCTIONS
 
-Using the C<--auto-desc> command line option, automatic building of
-description fields can be set up.  This is designed for bulk building
-of RPMs from many sources.  There are several possible ways that this
-function can get the description.
+If no other source of a description is given then C<makerpm> tries to
+automatically create a description from files contained in the perl
+module.  You can turn this off using the C<--noauto-desc> command line
+option.  If automatic description finding fails or is turned off, we
+just use our normal summary line
+
+   The Perl package XXXX
 
 =over
 
@@ -708,7 +732,8 @@ sub PerlMakefilePL {
     print STDERR "Changing directory to $dir\n" if $self->{'verbose'};
     chdir $dir || die "Failed to chdir to $dir: $!";
     my @command = ($^X, @{$self->{'makeperlopts'}}, 
-		   "-e",  "do 'Makefile.PL';", @{$self->{'makemakeropts'}});
+		   "-e",  "do 'Makefile.PL' or die $@;", 
+		   @{$self->{'makemakeropts'}});
     print STDERR "Creating Makefile: ". join ("| |",@command) ." \n" 
       if $self->{'verbose'};
     exit 1 if system @command;
@@ -864,6 +889,12 @@ sub MakeInstall {
     $specs_path;
 }
 
+# Build -
+#
+#Fully builds the perl module so that we can extract full information
+#from it. This is not to be used for actual building in the final RPM
+#any more.
+#
 
 sub Build {
     my $self = shift;
@@ -1139,7 +1170,7 @@ sub CheckDocFileForDesc {
   LINE: while ( my $line=<$fh> ) {
       $desc .= $line;
       $linecount++;
-      $linecount > 30 && last LINE;
+      $linecount > 25 && last LINE;
     }
     close($fh) or die "Failed to close $filename $!";
     #FIXME: quality check
@@ -1180,7 +1211,8 @@ sub CheckPerlProgForDesc {
 #module so put in a little header.
 	$desc =~ s/^\s*\n//;
 	$desc="This package contains the perl module " .
-	    $self->{"package-name"} . ".\n\n" . $desc;
+	    $self->{"package-name"} . ".\n\n" . $desc 
+	      unless $desc =~ m/perl/ and $desc =~ m/module/;
 	print STDERR "Found description in $filename\n" if $self->{'verbose'};
 	return $desc;
     };
@@ -1353,6 +1385,9 @@ sub AutoDesc {
   $desc=~s/^[_\W]*//s; #blank / punctuation lines at the start 
     $desc=~s/\s*$//;		#blank lines at the end.
 
+  #Simple cleanup of PODisms
+  $desc=~s/(^|\s)[A-Z]<([^>]+)>/$1$2/g;
+
   $self->{"description"}=$desc;
   return 1;
 }
@@ -1400,44 +1435,46 @@ sub AutoDocs() {
 #from different places without them needing to communicate and still
 #be efficient
 
-my %CheckRPMDataVersionResult=();
-sub CheckRPMDataVersion ($) {
-    my $RPMDataVersion=0.001; #the minimum version???
-    my $dir=shift;
-    ($dir =~ m,^/,) or ($dir= Cwd::cwd() . '/' . $dir);
-    return $CheckRPMDataVersionResult{$dir}
-        if defined $CheckRPMDataVersionResult{$dir};
-    #only called if there is?
-    -d $dir or warn "No RPM data dir";
-    my $vfile=$dir . '/VERSION';
-    -e $vfile && do {
-	my $fh = Symbol::gensym();
-	open ($fh, $vfile ) || die "Failed to open rpm data version file " .
-		$vfile . ": $!";
-	my ($suggest, $require);
-	while (<$fh>) {
-	    ( ($require) = m/^REQUIRES:\s*(\S+)/ ) && do {
-		die "Required version found but not positive number"
-		    unless $require =~ m/^\d+\.?\d*$/ ;
-		if ($require > $RPMDataVersion) {
-		    die <<END
-RPM data dir is too new.  You must upgrade makerpm.
-(Required version in $vfile is $require, makerpm data version is $RPMDataVersion.)
+{
+     my %CheckRPMDataVersionResult=();
+     sub CheckRPMDataVersion ($) {
+	 my $RPMDataVersion=0.001; #the minimum version???
+	 my $dir=shift;
+	 ($dir =~ m,^/,) or ($dir= Cwd::cwd() . '/' . $dir);
+	 return $CheckRPMDataVersionResult{$dir}
+	     if defined $CheckRPMDataVersionResult{$dir};
+	 #only called if there is?
+	 -d $dir or warn "No RPM data dir";
+	 my $vfile=$dir . '/VERSION';
+	 -e $vfile && do {
+	     my $fh = Symbol::gensym();
+	     open ($fh, $vfile ) || die "Failed to open rpm data version file " .
+		     $vfile . ": $!";
+	     my ($suggest, $require);
+	     while (<$fh>) {
+		 ( ($require) = m/^REQUIRES:\s*(\S+)/ ) && do {
+		     die "Required version found but not positive number"
+			 unless $require =~ m/^\d+\.?\d*$/ ;
+		     if ($require > $RPMDataVersion) {
+			 die <<END
+     RPM data dir is too new.  You must upgrade makerpm.
+     (Required version in $vfile is $require, makerpm data version is $RPMDataVersion.)
 END
-  ;
-                }
-	    };
-	    ( ($suggest) = m/^SUGGESTS:\s*(\S*)/ ) && do {
-		die "Suggested version found but not positive number"
-		    unless $suggest =~ m/^\d+\.?\d*$/ ;
-		warn "RPM data dir is newer than makerpm. Consider upgrade"
-		    if $suggest > $RPMDataVersion;
-	    };
-#	    ( $compatible = m/^COMPATIBLE:\s*(\S*)/ ) && do {};
-	}
-	close($fh) or die "Failed to close " . $vfile .  ": $!";
-    };
-    return $CheckRPMDataVersionResult{$dir}=$RPMDataVersion;
+       ;
+		     }
+		 };
+		 ( ($suggest) = m/^SUGGESTS:\s*(\S*)/ ) && do {
+		     die "Suggested version found but not positive number"
+			 unless $suggest =~ m/^\d+\.?\d*$/ ;
+		     warn "RPM data dir is newer than makerpm. Consider upgrade"
+			 if $suggest > $RPMDataVersion;
+		 };
+     #	    ( $compatible = m/^COMPATIBLE:\s*(\S*)/ ) && do {};
+	     }
+	     close($fh) or die "Failed to close " . $vfile .  ": $!";
+	 };
+	 return $CheckRPMDataVersionResult{$dir}=$RPMDataVersion;
+     }
 }
 
 sub ReadFile {
@@ -1479,7 +1516,8 @@ sub ReadDescription {
 
 #Description -  drive the hunt for description information
 #
-#expects build to have already been done.
+#expects build to have already been done.  Anything else would be an
+#internal error.
 #
 
 
@@ -1541,7 +1579,7 @@ sub Description {
 	      $self->AutoDesc() and last CASE;
 	  };
 
-	  warn "failed to find description for" . $self->{"package-name"};
+	  warn "failed to find description for " . $self->{"package-name"};
       }
     };
     my $status = $@;
@@ -1572,12 +1610,13 @@ sub ReadRequires {
 #expects build to have already been done.
 #
 
-my $reqfilename = "requires";
-
 sub Requires {
     my $self = shift;
     my $old_dir = Cwd::cwd();
     my $desc = "";
+
+    my $reqfilename = "requires";
+
     eval {
 	my $dir =  $self->{'built-dir'};
 	print STDERR "Changing directory to $dir\n" if $self->{'verbose'};
@@ -1686,7 +1725,7 @@ sub Specs {
       # able to see such as platform specific scripts or text
       # format documentation derived from something else.
 
-      unless ( $self->{"built-dir"} ) {
+     unless ( $self->{"built-dir"} ) {
 	$self->Prep();
 	$self->Build();
       }
@@ -1776,11 +1815,17 @@ EOF
 
 	my $runtests = $self->{'runtests'} ? " --runtests" : "";
 
-	#Normally files should be owned by root.  If we are building as
+	#Normally files should be owned by root.  
 	#non root then we can't do chowns (on any civilised operating
 	#system ;-) so we have to fix the ownership with a command.
+
+        # This is a warning becuase there might be modules which might
+        # install their own userid for security reasons or set files
+        # to other ownership's deliberately.  It is the responsibility
+        # of the packager to be aware of this.
+
 	my $defattr;
-	if ($<==0) { 	$defattr="" }
+	if ($self->{'defattr'}) { 	$defattr="" }
 	else {
 	  warn "using Defattr to force all files to root ownership\n";
 	  $defattr = "%defattr(-,root,root)";
@@ -1805,7 +1850,6 @@ EOF
 
 %description
 $self->{'description'}
-
 EOF
 
 	$specs .= <<"EOF" if $self->{'find-requires'};
@@ -1867,8 +1911,8 @@ make install
 #functions are superceeded by rpm.  we have to actually delete them
 #since if we don't rpm complains about unpackaged installed files.
 
-find \$RPM_BUILD_ROOT/usr -type f -name 'perllocal.pod' \\\
-	-o -name '.packlist' -print | xargs rm
+find \$RPM_BUILD_ROOT/usr -type f \\( -name 'perllocal.pod' \\\
+	-o -name '.packlist' \\) -print | xargs rm
 find \$RPM_BUILD_ROOT/usr -type f -print | 
 	sed "s\@^\$RPM_BUILD_ROOT\@\@g" > $filelist
 
@@ -2088,8 +2132,6 @@ Possible actions are:
 
 Possible options are:
 
-  --auto-desc                   Automatically derive the description of the
-                                perl module from the contents of the package.
   --build-root=<dir>		Set build-root directory for installation;
 				defaults to $build_root.
   --built-dir=<dir>             Directory where the package is already built.
@@ -2111,7 +2153,10 @@ Possible options are:
                                 install"; defaults to none.
   --mode=<mode>			Set build mode, defaults to $mode.
       				Possible modes are "RPM" or "PPM".
+  --noauto-desc                 Don't try to automatically derive the description 
+                                of the perl module from the contents of the package.
   --nochown                     Don't try to chown files (for non root builds)
+  --nodefattr                   Don't set files to be owned by root with %defattr.
   --noname-prefix               Don't prefix package name with 'perl-' 
   --package-name=<name>		Set package name.
   --package-version=<name>	Set package version.
@@ -2168,12 +2213,15 @@ EOF
 }
 
 {
-    my %o = ( 'chown' => 1 , 'name-prefix' => 1, 
-	      'makeperlopts' => [], 'makemakeropts' => []);
-    Getopt::Long::GetOptions(\%o, 'auto-desc', 'build', 'build-root=s',
+    my $chown; 
+    $chown = ( $> ? 0 : 1 ); #chown is default if running as root.
+    my %o = ( 'auto-desc' => 1, 'chown' => $chown , 'defattr' => 1, 
+	      'name-prefix' => 1, 'makeperlopts' => [], 
+	      'makemakeropts' => []);
+    Getopt::Long::GetOptions(\%o, 'auto-desc!', 'build', 'build-root=s',
 			     'built-dir=s',
 			     'copyright=s', 'chown!', 'data-dir=s', 'debug',
-			     'desc-file=s', 'find-requires!',
+			     'defattr!', 'desc-file=s', 'find-requires!',
 			     'help', 'install', 'make=s',
 			     'makemakeropts=s@', 'makeopts=s', 
                              'makeperlopts=s@', 'mode=s',
@@ -2193,8 +2241,8 @@ EOF
     $o{'verbose'} = 1 if $o{'debug'};
 
     #trap this now so it's the primary error
-    die "You must give an action; --prep, --build, --install or --specs\n"
-	unless $o{'specs'}||$o{'prep'}||$o{'build'}||$o{'install'};
+#    die "You must give an action; --prep, --build, --install or --specs\n"
+#	unless $o{'specs'}||$o{'prep'}||$o{'build'}||$o{'install'};
 
     die "You must give the package filename in the --source option.\n"
 	if ((exists $o{'specs'} || exists $o{'prep'}) and
@@ -2226,17 +2274,21 @@ EOF
     };
 
     if ($o{'ppm'}) {
+	warn "PPM unsuported; mode may go away soon - please contact us if you use it";
 	$self->PPM();
     } elsif ($o{'prep'}) {
+	warn "prep mode may go away soon - please contact us if you use it";
 	$self->Prep();
     } elsif ($o{'build'}) {
+	warn "build mode may go away soon - please contact us if you use it";
 	$self->Build();
     } elsif ($o{'install'}) {
+	warn "install mode may go away soon - please contact us if you use it";
 	$self->Install();
     } elsif ($o{'specs'}) {
 	$self->Specs();
     } else {
-	die "Action Unknown.";
+	$self->Specs();
     }
 }
 
@@ -2355,6 +2407,8 @@ Make package relocatable
 Research the best heuristic for generating descriptions from Perl
 modules.
 
+=back
+
 =head1 THE FUTURE
 
 The current configuration system is designed by Michael.  Two
@@ -2455,6 +2509,17 @@ version number and release it onto CPAN.
 
 =head1 CHANGES
 
+
+2004-01-05 Michael De La Rue <mikedlr@tardis.ed.ac.uk> + Ed Avis.
+
+      * --spec option is now default 
+      * --auto-doc is now default
+      * --nochown is default in the case of non root build
+      * --defattr is now the default in all cases
+      * clearly deprecate ppm mode 
+      * clearly deprecate prep/build/install modes
+      * multiple small cleanups
+      
 
 2003-08-22 Michael De La Rue <mikedlr@tardis.ed.ac.uk>
 
