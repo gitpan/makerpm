@@ -4,7 +4,7 @@
 #	makerpm.pl - A Perl script for building binary distributions
 #		     of Perl packages
 #
-#	This script is Copyright (C) 1999	Jochen Wiedmann
+#	This scrbipt is Copyright (C) 1999	Jochen Wiedmann
 #						Am Eisteich 9
 #						72555 Metzingen
 #					        Germany
@@ -44,10 +44,10 @@ use Symbol;
 
 
 
-use vars qw($VERSION $ID);
+use vars qw($VERSTR $VERSION $ID);
 
-$VERSION = "makerpm 0.300 2001/01/17, (C) 1999 Jochen Wiedmann (C) 2001 Michael De La Rue";
-$ID = '$Id: makerpm.pl,v 1.20 2001/06/02 19:57:56 mikedlr Exp $';
+( $VERSION ) = ( $VERSTR= "makerpm 0.400 2003/06/17, (C) 1999 Jochen Wiedmann (C) 2001,2003 Michael De La Rue") =~ /([0-9]+\.[0-9]+)/;
+$ID = '$Id: makerpm.pl,v 1.23 2004/01/01 21:26:29 mikedlr Exp $';
 
 =head1 NAME
 
@@ -108,7 +108,7 @@ You can create the package with
 
 There are many command line options.  For the most part you don't have
 to use them since makerpm will I<do the right thing>.  You should
-consider setting --copyright.  
+at least consider setting --copyright however.  
 
 
 Here is a full list:
@@ -135,7 +135,7 @@ into F</var/tmp/DBI-1.07>. Binaries are installed into F<$build_root/usr/bin>
 rather than F</usr/bin>, man pages in F<$build_root/usr/man> and so on.
 
 The idea is making the build process really reproducible and building the
-package without destructing an existing installation.
+package without destroying an existing installation.
 
 You don't need to supply a build root directory, a default name is
 choosen.
@@ -213,9 +213,17 @@ Set options for running "make" and "make install"; defaults to none.
 If you need certain options for running "perl Makefile.PL", this is
 your friend. By default no options are set.
 
-N.B. New in makerpm2.  This to set multiple options this should be
+N.B. New in makerpm2.  To set multiple options this should be
 called multiple times.  Whitespace included in the argument is passed
 through intact.
+
+In order to get a module to work for multiple different versions of
+perl, (in several different versions of RedHat, for example), you
+should consider using
+
+  "--makemakeropts=LIB=/usr/lib/perl5/site_perl"
+
+But don't do that if you are packaging a perl module with binary parts.
 
 =item --makeperlopts=<opts>
 
@@ -401,6 +409,8 @@ description fields can be set up.  This is designed for bulk building
 of RPMs from many sources.  There are several possible ways that this
 function can get the description.
 
+=over
+
 =item override files
 
 Before considering automatic description discovery, the configuration
@@ -453,6 +463,7 @@ exclude those extensions..
 =cut
 
 package Distribution;
+use Symbol;
 
 $Distribution::TMP_DIR = '/tmp';
 foreach my $dir (qw(/var/tmp /tmp C:/Windows/temp D:/Windows/temp)) {
@@ -484,7 +495,9 @@ sub new {
     $self->{'version'} = $self->{'package-version'}
 	or die "Missing package version";
 
-    $self->{'source_dirs'} ||= [ File::Spec->curdir() ];
+# this used to be File::Spec->curdir() - I don't understand why.  Michael
+# cwd() seems useful since it lets us use the directory we start in.
+    $self->{'source_dirs'} ||= [ Cwd::cwd() ];
     $self->{'default_setup_dir'} = "$self->{'name'}-$self->{'version'}";
     $self->{'setup-dir'} ||= $self->{'default_setup_dir'};
     $self->{'build_dir'} = File::Spec->curdir();
@@ -535,6 +548,12 @@ sub Extract {
 	}
     }
 
+    -e $source or do {
+      print STDERR "Source file doesn't exist in any sourcedir; pwd ",
+	 `pwd`, "\n", join ( " ", @{$self->{'source_dirs'}} ), "\n";
+      die "no source file $source";
+    };
+
     $dir = $self->{'setup-dir'};
     if (-d $dir) {
 	print STDERR "Removing directory $dir" if $self->{'verbose'};
@@ -545,8 +564,39 @@ sub Extract {
     }
 
     print STDERR "Extracting $source\n" if $self->{'verbose'};
+    my $fallback = 0;
     eval { require Archive::Tar; require Compress::Zlib; };
     if ($@) {
+	$fallback = 1;
+    }
+    else {
+	if (Archive::Tar->can("extract_archive")) {
+	    if (not defined(Archive::Tar->extract_archive($source))) {
+		# Failed to extract: wonder why?
+		for (Archive::Tar->error()) {
+		    if (/Compression not available/) {
+			# SuSE's Archive::Tar does this, even though
+			# Compress::Zlib is installed.  Oh well.
+			# 
+			$fallback = 1;
+		    }
+		    else {
+			die "Failed to extract archive $source: $_";
+		    }
+		}
+	    }
+	} else {
+	    my $tar = Archive::Tar->new();
+	    my $compressed = $source =~ /\.(?:tgz|gz|z|zip)$/i;
+	    my $numFiles = $tar->read($source, $compressed);
+	    die("Failed to read archive $source")
+	      unless $numFiles;
+	    die("Failed to store contents of archive $source: ", $tar->error())
+	      if $tar->extract($tar->list_files());
+	}
+    }
+
+    if ($fallback) {
 	# Archive::Tar is not available; fallback to tar and gzip
 	my $command = $^O eq "MSWin32" ?
 	    "tar xzf $source" :
@@ -557,17 +607,6 @@ sub Extract {
 	    . " Command was: $command\n"
 	    . " Output was: $output\n"
 		if $output;
-    } elsif (Archive::Tar->can("extract_archive")) {
-	die "Failed to extract archive $source: " . Archive::Tar->error()
-	    unless defined(Archive::Tar->extract_archive($source));
-    } else {
-	my $tar = Archive::Tar->new();
-	my $compressed = $source =~ /\.(?:tgz|gz|z|zip)$/i;
-	my $numFiles = $tar->read($source, $compressed);
-	die("Failed to read archive $source")
-	    unless $numFiles;
-	die("Failed to store contents of archive $source: ", $tar->error())
-	    if $tar->extract($tar->list_files());
     }
 }
 
@@ -626,11 +665,12 @@ sub Modes {
 	    or die "Failed to change mode of $File::Find::name: $!";
 	if ($self->{chown}) {
 	    chown 0, 0, $_
-		or die "Failed to change ownership of $File::Find::name: $!";
+		or die "Try --nochown; failed chown of $File::Find::name: $!";
 	}
     };
 
-    $dir = File::Spec->curdir();
+#    $dir = File::Spec->curdir();
+    $dir = Cwd::cwd();
     print STDERR "Changing modes in $dir\n" if $self->{'verbose'};
     File::Find::find($handler, $dir);
 }
@@ -740,7 +780,10 @@ sub AdjustPaths {
 	return unless -f $f && ! -z _;
 	my $fh = Symbol::gensym();
 	my $origstate=Makewrite($f);
-	open($fh, "+<$f") or die "Failed to open $File::Find::name: $!";
+ 	open($fh, "+<$f")
+ 	  or ((chmod(0644, $f) || die "Failed to chmod $File::Find::name: $!")
+ 	      && open($fh, "+<$f"))
+ 	    or die "Failed to open $File::Find::name: $!";
 	local $/ = undef;
 	my $contents;
 	die "Failed to read $File::Find::name: $!"
@@ -800,7 +843,8 @@ sub MakeInstall {
 
     if ($self->{compress_manpages}) {
       foreach my $file (sort keys %$files) {
-	#FIXME: this regexp is not guaranteed.
+	#FIXME: this regexp is not guaranteed.  (Maybe matching
+	#'/man/man\d/' would be better?)
 	($file =~ m,/usr/(.*/|)man/, ) and ($file .= ".gz");
 	$fileList .= "$file\n";
       }
@@ -1375,8 +1419,13 @@ sub CheckRPMDataVersion ($) {
 	    ( ($require) = m/^REQUIRES:\s*(\S+)/ ) && do {
 		die "Required version found but not positive number"
 		    unless $require =~ m/^\d+\.?\d*$/ ;
-		die "RPM data dir is too new.  You must upgrade makerpm"
-		    if $require > $RPMDataVersion;
+		if ($require > $RPMDataVersion) {
+		    die <<END
+RPM data dir is too new.  You must upgrade makerpm.
+(Required version in $vfile is $require, makerpm data version is $RPMDataVersion.)
+END
+  ;
+                }
 	    };
 	    ( ($suggest) = m/^SUGGESTS:\s*(\S*)/ ) && do {
 		die "Suggested version found but not positive number"
@@ -1650,7 +1699,6 @@ sub Specs {
 	#FIXME check what side effects install has... hmm get rid of them
 	#if they are important.
 	my $filelist;
-	$filelist = $self->Install() if ($self->{recursive}) ;
       #where is this file going anyway???
 	$filelist = $self->{'name'}.$self->{'version'} . '.filelist'
 	  unless defined $filelist;
@@ -1658,6 +1706,8 @@ sub Specs {
 	my($files, $dirs) = $self->Files($self->{'build-root'});
 
 	my $specs = <<"EOF";
+#Spec file created by makerpm 
+#   
 %define packagename $self->{'name'}
 %define packageversion $self->{'version'}
 %define release 1
@@ -1704,11 +1754,6 @@ Version:   %{packageversion}
 Release:   %{release}
 Group:     $self->{'rpm-group'}
 Source:    $self->{'source'}
-EOF
-	$specs .= <<"EOF" if ($self->{recursive}) ;
-Source1:   makerpm.pl
-EOF
-	$specs .= <<"EOF";
 Copyright: $self->{'copyright'}
 BuildRoot: $self->{'build-root'}
 Provides:  $prefix%{packagename}
@@ -1730,13 +1775,6 @@ EOF
 	}
 
 	my $runtests = $self->{'runtests'} ? " --runtests" : "";
-
-	my $cascade_opts = "";
-	$self->{chown} or ($cascade_opts .="--nochown ");
-	$self->{verbose} and ($cascade_opts .="--verbose ");
-	$self->{'rm-files'} and do {
-	  $cascade_opts .="--rm-file=" . quotemeta $self->{'rm-files'};
-	};
 
 	#Normally files should be owned by root.  If we are building as
 	#non root then we can't do chowns (on any civilised operating
@@ -1781,11 +1819,6 @@ EOF
 %prep
 EOF
 
-	if ($self->{recursive}) {
-	  $specs .= <<"EOF" ;
-$makerpm_path $cascade_opts  --prep
-EOF
-	} else {
 	    $specs .= <<"EOF" ;
 %setup -q -n $self->{'setup-dir'}
 EOF
@@ -1794,28 +1827,24 @@ EOF
             $specs .= <<"EOF" if $self->{'rm-files'};
 find $self->{'setup-dir'} -regex '$self->{'rm-files'} ' -print0 | xargs -0 rm
 EOF
-	}
-
 	$specs .= <<"EOF" ;
 
 $prep_script
 
 %build
 EOF
-	if ($self->{recursive}) {
-	  #FIXME: I bet this doesn't work properly; but I'm too lazy to test
-	$specs .= <<"EOF" ;
-$makerpm_path $cascade_opts --build$runtests %{makeopts} %{makeperlopts} %{makemakeropts}
-EOF
-      } else {
+
+#we put LANG=C becuase perl 5.8.0 on RH 9 doesn't create makefiles otherwise.  
+#this should be made conditional in the case where perl starts working with 
+#unicode languages..
+	$specs .= "export LANG=C\n";
 	$specs .= 'CFLAGS="$RPM_OPT_FLAGS" perl ';
 	$specs .= '%{makeperlopts} ' if @{$self->{'makeperlopts'}};
-	$specs .= ' Makefile.PL ';
+	$specs .= ' Makefile.PL PREFIX=$RPM_BUILD_ROOT/usr ';
 	$specs .= '%{makemakeropts}' if @{$self->{'makemakeropts'}};
 	$specs .= "\nmake";
 	$specs .= '%{makeopts}' if $self->{'makeopts'};
 	$specs .= "\n";
-      }
 
 	$specs .= <<"EOF" ;
 
@@ -1828,33 +1857,26 @@ $install_script
 
 #run install script first so we can pick up all of the files
 
-EOF
-	if ($self->{recursive}) {
-	$specs .= <<"EOF" ;
-$makerpm_path $cascade_opts --install %{makeopts}
-EOF
-      } else {
-	$specs .= <<"EOF" ;
-
 eval `perl '-V:installarchlib'`
 mkdir -p \$RPM_BUILD_ROOT/\$installarchlib
-make PREFIX=\$RPM_BUILD_ROOT/usr install
+make install
 
 [ -x /usr/lib/rpm/brp-compress ] && /usr/lib/rpm/brp-compress
 
+#we don't include the packing list and perllocal.pod files since their
+#functions are superceeded by rpm.  we have to actually delete them
+#since if we don't rpm complains about unpackaged installed files.
+
+find \$RPM_BUILD_ROOT/usr -type f -name 'perllocal.pod' \\\
+	-o -name '.packlist' -print | xargs rm
 find \$RPM_BUILD_ROOT/usr -type f -print | 
-	sed "s\@^\$RPM_BUILD_ROOT\@\@g" | 
-	grep -v perllocal.pod | 
-	grep -v "\.packlist" > $filelist
+	sed "s\@^\$RPM_BUILD_ROOT\@\@g" > $filelist
+
 if [ "\$(cat $filelist)X" = "X" ] ; then
     echo "ERROR: EMPTY FILE LIST"
     exit -1
 fi
-
-
 EOF
-      }
-
 
 	my ($name,$passwd,$uid,$gid, $quota,$comment,$gcos,$dir,$shell,$expire)
 	  = getpwent;
@@ -2089,6 +2111,7 @@ Possible options are:
                                 install"; defaults to none.
   --mode=<mode>			Set build mode, defaults to $mode.
       				Possible modes are "RPM" or "PPM".
+  --nochown                     Don't try to chown files (for non root builds)
   --noname-prefix               Don't prefix package name with 'perl-' 
   --package-name=<name>		Set package name.
   --package-version=<name>	Set package version.
@@ -2139,7 +2162,7 @@ Options for PPM mode are:
 				<package>.ppd and <package>.tar.gz,
 				respectively.
 
-$VERSION
+$VERSTR
 EOF
     exit 1;
 }
@@ -2160,13 +2183,13 @@ EOF
 			     'ppm-dir=s', 'ppm-noversion', 'prep',
 			     'require=s@', 'rpm-base-dir=s',
 			     'rpm-build-dir=s', 'rpm-source-dir=s',
-			     'rpm-specs-dir=s', 'rpm-group=s', 'rpm-version',
+			     'rpm-specs-dir=s', 'rpm-group=s', 
 			     'rm-files=s',
 			     'runtests', 'setup-dir=s', 'source=s', 'specs',
 			     'summary=s',
 			     'verbose', 'version', 'rpm-version=s');
     Usage() if $o{'help'};
-    if ($o{'version'}) { print "$VERSION\n"; exit 1}
+    if ($o{'version'}) { print "$VERSTR\n"; exit 1}
     $o{'verbose'} = 1 if $o{'debug'};
 
     #trap this now so it's the primary error
@@ -2332,19 +2355,6 @@ Make package relocatable
 Research the best heuristic for generating descriptions from Perl
 modules.
 
-=item -
-
-The current mechanism needs makerpm to be included in the build
-package.  It would be simpler to simply make a stand alone spec
-file. In fact this seems to be what RedHat is now doing.  Either
-switch to a stand alone spec file or write a full justification why
-this is impossible as a long term solution.
-
-Better still might be to write stand alone spec files wherever
-possible and only write recursive spec files when we actually need to.
-
-=back
-
 =head1 THE FUTURE
 
 The current configuration system is designed by Michael.  Two
@@ -2444,6 +2454,24 @@ If I don't respond within two weeks, feel free to increment the
 version number and release it onto CPAN.
 
 =head1 CHANGES
+
+
+2003-08-22 Michael De La Rue <mikedlr@tardis.ed.ac.uk>
+
+      * removed --recursive option
+      * built a proper test suite
+      * fixes to get tests to complete
+
+2003-07-09 Michael De La Rue <mikedlr@tardis.ed.ac.uk>
+
+      * changes from Ed Avis added - protection against non working
+        Archive::Tar, extra file checks
+
+2003-06-12 Michael De La Rue <mikedlr@tardis.ed.ac.uk>
+
+      * force LANG=C during build for RH9.. we will reconsider this in
+        future, but it's likely that this is a safe way
+      * fix (apparently old) bugs in various options 
 
 2001-06-01 Michael De La Rue <mikedlr@tardis.ed.ac.uk>
 

@@ -1,0 +1,10 @@
+MANIFEST			This list of files
+Makefile.PL
+Package-details-proposal
+makerpm.pl
+test-data/Getopt-Function-0.002.tar.gz
+test-data/Getopt-Function-0.003.tar.gz
+test-data/Getopt-Function-0.0031.tar.gz
+test-data/Getopt-Function-0.0032.tar.gz
+test-data/Getopt-Function-0.004.tar.gz
+test.pl

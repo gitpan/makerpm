@@ -1,0 +1,233 @@
+Proposal: Additions to perl's modules for easy binary package builds
+
+SUMMARY
+
+In order to allow easy package format conversion I propose reserving
+the following directory names
+
+   pkg-data-rpm - information for the RPM system
+   pkg-data-dpkg - information for the DPKG system
+   pkg-data-ppm - information for the PPM system
+   
+   pkg-data-* - reserved for use by future packaging systems
+
+for data specific to other package formats than perl's native one.
+
+The proposed place for this reservation is the perlmod manual page.
+
+INTRODUCTION
+
+There are now a number of package mangement systems in general use.
+These are systems which allow the easy installation of software.  The
+most important ones also allow tracking of the modification and access
+rights status of files and easy un-installation.  Thus, even when
+doing their own build of software from source, many system
+administrators like to use the package management software for all
+software installed.
+
+Perl provides some package management infrastructure however this
+doesn't provide all of the features and speed of the custom package
+managment software.  It's much more specificaly aimed towards the
+maintainance of the packages at CPAN.  Most importantly (NIH) it's not
+the one which the system administrators are using for installation of
+other software.  Using it on a system which already has package
+management doubles the number of systems in use.  A bad idea.
+
+On the other hand, using other package management architectures to
+manage perl programs means that those modules are not distributed to
+the full perl community.  
+
+Makerpm is software which allows the use of perls package managment
+infrastructure to automatically build two other formats.  This gives
+us the best of both worlds.  There is a custom source format for perl
+which provides all of the special features useful in building perl
+modules.  On the other hand the final installed software can be
+managed natively by the system manager on the system where it is to
+be used.  
+
+NEED FOR INTERWORKING
+
+Much of the time it's possible to extract much of the needed
+information automatically from the existing perl package format.  That
+is desirable because it opens up the possibility of using 
+
+Unfortunately, the models used by the different package management
+systems are inherently somewhat incompatible.  For example, sometimes
+package management systems have a "description" for the package which
+can be read from the package in binary format and is used to help
+users to decide whether to install the package.  This is not directly
+supported in perl modules (the README file is similar, but not exactly
+the same thing since that tends to give more information than just the
+description).  This is likely to continue since the packaging groups
+are experimenting with finding more useful features to add.  
+
+Partly incompatible models mean that it's possible to build packages.
+In the example of RedHat's distributed CPAN archive we can see that
+these are useful.  However the lack of the description field makes
+them less than perfectly useful.  They are good as a way of bringing
+perl to RedHat, but as a way for programmers to distribute their perl
+modules are not good at all.  
+
+TARGETS AND CONSTRAINTS ON SOLUTION
+
+We must achieve the following
+
+   no change is forced upon currently existing packages
+
+   it is easy to retro-fit changes to a package if desired
+
+   new packages can use (almost) all of the features of the target
+   packaging system
+
+we want to achieve the following
+
+   the solution doesn't descriminate against particular package
+   management systems (so that we can all keep working together
+   happily).
+
+we want to optimise for
+
+   maximum ease of maintainance
+
+   minimum complexity in using the system
+
+   minimum misunderstandings for others
+
+we can assume that:
+
+   perl (at least version 5.001.. later if we wish) is available
+   during the build
+
+PROPOSAL FOR PERL MODULE FORMAT CHANGE
+
+In order to support interworking with the perl package format I
+propose we add storage space for all of the information that would be
+needed for interworking.  
+
+in perl module packages the following directory names will be reserved
+and should not be used by package authors except for this system
+
+   pkg-data-rpm - information for the RPM system
+   pkg-data-dpkg - information for the DPKG system
+   pkg-data-ppm - information for the PPM system
+   
+   pkg-data-* - reserved for use by future packaging systems
+
+These files will be used by package converters such as B<makerpm> to
+semi-automatically build binary packages in the format of that package
+manager.  
+
+The format of the contents of the sub directory would be determined by
+the maintainers of the conversion program.  We propose though that
+they adopt a similar versioning system to the proposal for RPM below. 
+
+Sharing of compatible information between directories is allowed
+simply by reading the other packaging systems format on the terms of
+the maintainer(s) of the conversion tools for that other format.  In
+this case beware of versioning information.
+
+EXAMPLE PROPOSAL FOR RPM
+
+The following files are defined
+
+    VERSION - see below
+    description - the description field of the RPM
+    license - the license field of the RPM
+    requires - list of packages required by the package
+
+Versioning works as follows.  There is a file "VERSION" which is used
+to set versioning requirements from the package.  In that file the
+following field is mandatory (defined by perl regex) 
+
+^REQUIRES:\s*(\S*)
+
+The string given (bit coded in the brackets) is the version NUMBER.
+This defines the version of the format of the directory.  
+
+A package conversion program reading the VERSION file should fail to
+build a package were the version string is newer than any the program
+recognises.  
+
+Another field, "SUGGESTS" is reserved for use for enabling compatible
+options.  A package conversion program finding a SUGGESTS field with a
+newer value than it recognises should issue a warning but continue to
+work.  
+
+Yet another field, "COMPATIBLE" is reserved for protecting against bad
+formatting of the directory.  A package conversion program finding a
+COMPATIBLE field with a newer value than it recognises should continue
+to work as normal.
+
+Future versions of package management software may, at their option,
+and under circumstances of their choosing refuse to build packages
+which don't have an appropriate "COMPATIBLE" field.  In general,
+though, this should be a rare exception to the.
+
+If no file is present or the lines are not present it is treated as if
+the version number is 0.  This is to say, the package should build
+with all versions of the package conversion software and everything
+should just work.
+
+Lines in the file beginning with # will be ignored.
+
+Put simply
+
+    VERSION - says what minimum type of program is needed to build this
+    SUGGESTS - warns us if there is a newer better version out there
+       which would do a better job than we can do now.
+    COMPATIBLE - allows us to signal that we are aware of bugs in
+       previous versions of the directory format and are avoiding
+       them. 
+
+And normally you probably only really need to worry about VERSION and
+even that only if you are writing package conversion software.
+
+
+INTERACTIONS WITH DEBIAN
+
+The debian packaging system works by altering the contents of a
+package adding a few files.  It should be perfectly compatible to use
+this system along side debian's system.  All debian files are normally
+prefixed with DEBIAN and shouldn't interfere.  
+
+An intelligent auto-conversion progam should take note of the debian
+files in the packages directory so there would be no requirement to
+use this system.
+
+The two systems appear compatible.  
+
+Furthermore, just by never using the pkg-data-dpkg we could 
+
+A possible format would be simply to move the debian files directly
+into the pkg-data-dpkg.  Package building would then consist of.
+
+     a) move out files
+     b) build as normal
+
+The key advantage would be lack of clutter in a package not primarily
+targeted at debian.
+
+FURTHER WORK
+
+As it stands currently, much of the work of the CPAN module has not
+been made useful here.  There are several aspects that could be looked
+into.  
+       - teach CPAN to use package conversion
+       - teach package conversion programs to store data for CPAN
+       
+This package conversion is something which might be considered in
+relation to "Alien" the package conversion system which converts
+between RPM, DPG etc. packages.  
+
+IMPLICATIONS
+
+We're now abstracting so that we have three layers in the build
+process for a package
+
+	1) the format the package maintainer uses (perl-module)
+	2) the source distribution format (SRPM)
+	3) the binary distribution format (RPM)
+
+the key difference now is that the package maintainer explicitly
+supports the conversion from 1 to 2.
+
