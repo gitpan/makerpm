@@ -24,9 +24,12 @@
 #       call from everywhere in the world so unlikely to be spammed to
 #       death) between 18 and 21 GMT.
 #
-#       The same terms as above apply.
+#       The same terms as above apply.  As a matter of preference You
+#       are encouraged to avoid the Artistic license which is believed
+#       to be somewhat legally ambiguous.  This is not a binding
+#       requirement in any way.
 
-require 5.003; #becuase of use of my variables etc..
+require 5.003; #because of use of my variables etc..
 
 use strict;
 
@@ -43,8 +46,8 @@ use Symbol;
 
 use vars qw($VERSION $ID);
 
-$VERSION = "makerpm 0.200 2001/01/17, (C) 1999 Jochen Wiedmann (C) 2001 Michael De La Rue";
-$ID = '$Id: makerpm.pl,v 1.16 2001/01/28 14:07:37 mikedlr Exp $';
+$VERSION = "makerpm 0.210 2001/01/17, (C) 1999 Jochen Wiedmann (C) 2001 Michael De La Rue";
+$ID = '$Id: makerpm.pl,v 1.20 2001/06/02 19:57:56 mikedlr Exp $';
 
 =head1 NAME
 
@@ -54,7 +57,8 @@ makerpm - Build binary distributions of Perl packages
 
 Create a SPECS file:
 
-  makerpm --specs --source=<package>-<version>.tar.gz
+  makerpm --specs --source=<package>-<version>.tar.gz \
+          --copyright="GPL or Artistic"
 
 Apply the SPECS file (which in turn uses makerpm.pl):
 
@@ -102,7 +106,12 @@ You can create the package with
 
 =head2 Command Line Options
 
-Possible command line options are:
+There are many command line options.  For the most part you don't have
+to use them since makerpm will I<do the right thing>.  You should
+consider setting --copyright.  
+
+
+Here is a full list:
 
 =over 8
 
@@ -137,6 +146,13 @@ Set the packages copyright message. The default is
 
   Probably the same terms as perl.  Check.
 
+You are suggested to change this to match the actual package copyright.
+
+=item --nochown
+
+Setting --nochown will stop makerpm from trying to change the
+ownership of files which means that it can be run as any user. 
+
 =item --data-dir=<directory>
 
 The directory <directory>/<package-name> contains data for the package
@@ -150,6 +166,14 @@ being done and implies verbose mode.
 =item --desc-file=<file>
 
 Uses the file given as the description field for the RPM.
+
+=item --find-requires
+
+When writing the spec file this option will write lines to use the
+special perl find-requires and find-provides programs which will then
+automatically generate dependancies between different perl rpms.  This
+is automatic with RPM version 4 so you should never need to use this
+option.
 
 =item --help
 
@@ -203,7 +227,7 @@ enabled.
 
 With this option the package will be named without the prefix perl.
 This instead of B<Getopt::YAGO> becoming perl-Getopt-YAGO, it will
-become simply Getopt-YAGO.
+become simply Getopt-YAGO.  
 
 =item --package-name=<name>
 
@@ -212,11 +236,23 @@ become simply Getopt-YAGO.
 Set the package name and version. These options are required for --build and
 --install.
 
+=item --ppm
+
+=item --ppm-ppdfile
+
+=item --ppm-ppmfile
+
+Create PPM related files.  See B<creating PPD files> above.
+
 =item --prep
 
 Extract the sources and prepare the source directory.
 
-=item --rpm-top-dir=<dir>
+=item --requre=<package name>
+
+Add the name of a package to the requires list for RPM
+
+=item --rpm-base-dir=<dir>
 
 =item --rpm-build-dir=<dir>
 
@@ -232,6 +268,11 @@ and F<$topdir/SPECS>.
 =item --rpm-group=<group>
 
 Sets the RPM group; defaults to Development/Languages/Perl.
+
+=item --rpm-version=<number>
+
+Forces the makerpm to assume the given RPM version, writing a spec
+file for it as appropriate
 
 =item --setup-dir=<dir>
 
@@ -376,7 +417,7 @@ used as the RPM description.
 
 =head1 HANDLING RPM VERSIONS
 
-Since the format of the RPM spec file has chnaged in the past and will
+Since the format of the RPM spec file has changed in the past and will
 probably change in the future, there must be some handling of the
 version of RPM.  In the normal case, makerpm runs B<rpm --version> and
 examines the output.  This can be overridden by using the
@@ -697,7 +738,7 @@ sub AdjustPaths {
 	    unless defined($contents = <$fh>);
 	my $modified;
 	if ($self->{'start_perl'}) {
-	    $contents =~ s/^\#\!(\S+)/\#\!$self->{'start_perl'}/s;
+	    $contents =~ s/^\#\!(\S*perl\S*)/\#\!$self->{'start_perl'}/si;
 	    $modified = 1;
 	}
 	if ($contents =~ s/\Q$build_root\E//gs) {
@@ -824,44 +865,60 @@ package Distribution::RPM;
 
   sub Init {
     my $self = shift; my $fatal = shift;
+    die "Self must be a reference" unless (ref $self);
+    die "Self must be a hash reference" unless ($self =~ m/HASH/);
     my $rpm_version;
 
     my $last_rpm=4; #latest version of RPM we have seen
+    my $next_rpm=$last_rpm+1; #latest version of RPM we have seen
 
+    if (defined $self->{"rpm-version"}) {
+      $rpm_version = $self->{"rpm-version"};
+    } else {
+      my $rpm_version_string = `rpm --version`;
+      if ($rpm_version_string =~ /rpm\s+version\s+([2-$last_rpm])\.+/i) {
+	$rpm_version=$1;
+      } elsif ($rpm_version_string =~ /rpm\s+version\s+[10]\.+/i) {
+	die "Cannot handle RPM before version 2: " .
+	  ($rpm_version_string || "");
+      } elsif ($rpm_version_string
+	       =~ /rpm\s+version\s+([$next_rpm-9]|\d\d+)/i) {
+	$rpm_version=$last_rpm;
+	warn "Your RPM is a new version.  I'm going to pretend it's "
+	  . "rpm $last_rpm";
+      } elsif ($rpm_version_string =~ /rpm\s+version\s/i) {
+	$rpm_version=$last_rpm;
+	warn "RPM version unkown.  I'm going to pretend it's $last_rpm";
+      } else {
+	die "RPM --version option didn't work as expected..";
+      }
+    }
+
+  CASE: {
+      $rpm_version == 2 && do { $self->handle_rpm_version_2() ; last CASE;};
+      $rpm_version == 3 && do { $self->handle_rpm_version_3() ; last CASE;};
+      $rpm_version == 4 && do { $self->handle_rpm_version_4() ; last CASE;};
+      die "RPM version should be between 2 and $last_rpm";
+    }
+
+    return init_directories();
+  }
+
+  sub init_directories {
     if (!$source_dir) {
       $source_dir = $ENV{'RPM_SOURCE_DIR'} if $ENV{'RPM_SOURCE_DIR'};
       $build_dir = $ENV{'RPM_BUILD_DIR'} if $ENV{'RPM_BUILD_DIR'};
 
-      my $next_rpm=$last_rpm+1; #latest version of RPM we have seen
-      if  (defined $self->{"rpm-version"}) {
-	$rpm_version = $self->{"rpm-version"};
-      } else {
-	my $rpm_version_string = `rpm --version`;
-	if ($rpm_version_string =~ /rpm\s+version\s+([2-$last_rpm])\.+/i) {
-	  $rpm_version=$1;
-	} elsif ($rpm_version_string =~ /rpm\s+version\s+[10]\.+/i) {
-	  die "Cannot handle RPM before version 2: " .
-	    ($rpm_version_string || "");
-	} elsif ($rpm_version_string
-		 =~ /rpm\s+version\s+([$next_rpm-9]|\d\d+)/i) {
-	  $rpm_version=$last_rpm;
-	  warn "Your RPM is a new version.  I'm going to pretend it's "
-	    . "rpm $last_rpm";
-	} elsif ($rpm_version_string =~ /rpm\s+version\s/i) {
-	  $rpm_version=$last_rpm;
-	  warn "RPM version unkown.  I'm going to pretend it's $last_rpm";
-	} else {
-	  die "RPM --version option didn't work as expected..";
-	}
-      }
-    CASE: {
-	$rpm_version == 2 && do { $self->handle_rpm_version_2() ; last CASE;};
-	$rpm_version == 3 && do { $self->handle_rpm_version_3() ; last CASE;};
-	$rpm_version == 4 && do { $self->handle_rpm_version_4() ; last CASE;};
-	die "RPM version should be between 2 and $last_rpm";
-      }
+      
+
+      $source_dir=`rpm --eval '%_sourcedir'` unless $source_dir;
+      chomp $source_dir;
       die "Failed to work out source_dir from rpm" unless $source_dir;
+      $specs_dir=`rpm --eval '%_specdir'` unless $specs_dir;
+      chomp $specs_dir;
       die "Failed to work out specs_dir from rpm" unless $specs_dir;
+      $build_dir=`rpm --eval '%_builddir'` unless $build_dir;
+      chomp $build_dir;
       die "Failed to work out build_dir from rpm" unless $build_dir;
     }
     if (!$topdir) {
@@ -871,7 +928,7 @@ package Distribution::RPM;
 	  last;
 	}
       }
-      die "Unable to determine RPM topdir";
+      die "Unable to determine RPM topdir" unless $topdir;
     }
     $source_dir ||= "$topdir/SOURCES";
     $specs_dir ||= "$topdir/SPECS";
@@ -920,6 +977,7 @@ package Distribution::RPM;
       my $self=$_[0];
       my $ret=handle_rpm_version_3(@_);
       $self->{compress_manpages}=1;
+      $self->{'find-requires'}=1 unless defined $self->{'find-requires'};
       return $ret;
     }
 
@@ -1624,6 +1682,17 @@ BuildRoot: $self->{'build-root'}
 Provides:  $prefix%{packagename}
 Summary:   $self->{'summary'}
 EOF
+
+#this is something added to mirror the RedHat generated spec files..
+#I think it makes sense, though maybe the version number is too
+#strict?? - Michael
+
+	$specs .= <<"EOF" if $self->{"rpm-version"} > 4;
+BuildRequires: perl >= 5.6
+Requires: perl >= 5.6
+EOF
+
+
 	if (my $req = $self->{'require'}) {
 	    $specs .= "Requires: " . join(" ", @$req) . "\n";
 	}
@@ -1667,6 +1736,17 @@ EOF
 %description
 $self->{'description'}
 
+EOF
+
+	$specs .= <<"EOF" if $self->{'find-requires'};
+
+# Provide perl-specific find-{provides,requires}.
+%define __find_provides /usr/lib/rpm/find-provides.perl
+%define __find_requires /usr/lib/rpm/find-requires.perl
+
+EOF
+
+	$specs .= <<"EOF";
 %prep
 $makerpm_path $cascade_opts  --prep
 
@@ -1863,7 +1943,7 @@ sub Usage {
     my $start_perl = substr($Config::Config{'startperl'}, 2);
 
     my ($rpm_source_dir, $rpm_build_dir, $rpm_specs_dir) =
-	&Distribution::RPM->Init(1);
+	Distribution::RPM->init_directories(1);
 
     print <<EOF;
 Usage: $0 <action> [options]
@@ -1884,8 +1964,7 @@ Possible options are:
   --build-root=<dir>		Set build-root directory for installation;
 				defaults to $build_root.
   --copyright=<msg>		Set copyright message, defaults to
-				"GNU General Public License or Artistic
-				License, as specified in the Perl README".
+				"Probably the same terms as perl.  Check.".
   --data-dir                    Directory of data for defining package
                                 information.
   --debug       		Turn on debugging mode
@@ -1902,6 +1981,7 @@ Possible options are:
                                 install"; defaults to none.
   --mode=<mode>			Set build mode, defaults to $mode.
       				Possible modes are "RPM" or "PPM".
+  --noname-prefix               Don't prefix package name with 'perl-' 
   --package-name=<name>		Set package name.
   --package-version=<name>	Set package version.
   --perl-path=<path>		Perl path to verify in generated scripts;
@@ -1924,6 +2004,7 @@ Possible options are:
 
 Options for RPM mode are:
 
+  --rpm-base-dir=<dir>          Set RPM base directory
   --rpm-build-dir=<dir>         RPM build directory; defaults to
       				$rpm_build_dir.
   --rpm-group=<group>           RPM group, default Development/Languages/Perl.
@@ -1960,7 +2041,8 @@ EOF
 	      'makeperlopts' => [], 'makemakeropts' => []);
     Getopt::Long::GetOptions(\%o, 'auto-desc', 'build', 'build-root=s',
 			     'copyright=s', 'chown!', 'data-dir=s', 'debug',
-			     'desc-file=s', 'help', 'install', 'make=s',
+			     'desc-file=s', 'find-requires!',
+			     'help', 'install', 'make=s',
 			     'makemakeropts=s@', 'makeopts=s', 
                              'makeperlopts=s@', 'mode=s',
 			     'name-prefix!',
@@ -1969,11 +2051,11 @@ EOF
 			     'ppm-dir=s', 'ppm-noversion', 'prep',
 			     'require=s@', 'rpm-base-dir=s',
 			     'rpm-build-dir=s', 'rpm-source-dir=s',
-			     'rpm-specs-dir=s', 'rpm-group=s',
+			     'rpm-specs-dir=s', 'rpm-group=s', 'rpm-version',
 			     'rm-files=s',
 			     'runtests', 'setup-dir=s', 'source=s', 'specs',
 			     'summary=s',
-			     'verbose', 'version=s');
+			     'verbose', 'version', 'rpm-version=s');
     Usage() if $o{'help'};
     if ($o{'version'}) { print "$VERSION\n"; exit 1}
     $o{'verbose'} = 1 if $o{'debug'};
@@ -2116,6 +2198,10 @@ This script requires the C<File::Spec> package.
 
 =item -
 
+make a set of test cases
+
+=item -
+
 Add handling of configuration files: suggest anything in /etc/ is
 automatically a config file.
 
@@ -2137,12 +2223,23 @@ Make package relocatable
 Research the best heuristic for generating descriptions from Perl
 modules.
 
+=item -
+
+The current mechanism needs makerpm to be included in the build
+package.  It would be simpler to simply make a stand alone spec
+file. In fact this seems to be what RedHat is now doing.  Either
+switch to a stand alone spec file or write a full justification why
+this is impossible as a long term solution.
+
+Better still might be to write stand alone spec files wherever
+possible and only write recursive spec files when we actually need to.
+
 =back
 
 =head1 THE FUTURE
 
-The current configuration system is my design.  Two alternative
-mechanisms have been proposed.
+The current configuration system is designed by Michael.  Two
+alternative mechanisms have been proposed.
 
 =over
 
@@ -2157,7 +2254,7 @@ Using an XML file.
 =back
 
 Suggestion B<b> is currently ruled out since XML support is not
-included in teh default installation of perl.  As a build tool,
+included in the default installation of perl.  As a build tool,
 MakeRPM should rely on nothing which isn't available by default.
 
 Suggestion B<a> seems to be quite resonable.  It has the advantage
@@ -2170,6 +2267,10 @@ Anyway, the summary of attributes I think the system should have is as
 follows.
 
 =over
+
+=item *
+
+Nobody should have to use it.
 
 =item *
 
@@ -2234,6 +2335,17 @@ If I don't respond within two weeks, feel free to increment the
 version number and release it onto CPAN.
 
 =head1 CHANGES
+
+2001-06-01 Michael De La Rue <mikedlr@tardis.ed.ac.uk>
+
+      * add support for find_provides.perl and find_requires.perl
+        since RedHat has started using them.
+      * fix (apparently old) bugs in various options 
+
+2001-02-11 Michael De La Rue <mikedlr@tardis.ed.ac.uk>
+
+      * change to only adjust interpreter paths that contain 'perl'.
+        This allows the user to create e.g. shell scripts.
 
 2001-01-26 Michael De La Rue <mikedlr@tardis.ed.ac.uk>
 
