@@ -4,6 +4,7 @@ MANIFEST.SKIP
 Makefile.PL
 Package-details-proposal
 Progcopy.PL
+makerpm-command.sh
 makerpm.pl
 test-data/Getopt-Function-0.002.tar.gz
 test-data/Getopt-Function-0.003.tar.gz

@@ -50,8 +50,8 @@ use Symbol;
 
 use vars qw($VERSTR $VERSION $ID);
 
-( $VERSION ) = ( $VERSTR= "makerpm 0.405 2004/02/07, (C) 1999 Jochen Wiedmann (C) 2001,2003,2004 Michael De La Rue") =~ /([0-9]+\.[0-9]+)/;
-$ID = '$Id: makerpm.pl,v 1.28 2004/02/07 10:47:34 mikedlr Exp $ ';
+( $VERSION ) = ( $VERSTR= "makerpm 0.409 2004/02/08, (C) 1999 Jochen Wiedmann (C) 2001,2003,2004 Michael De La Rue") =~ /([0-9]+\.[0-9]+)/;
+$ID = '$Id: makerpm.pl,v 1.30 2004/02/08 17:29:25 mikedlr Exp $ ';
 
 =head1 NAME
 
@@ -75,17 +75,32 @@ Create a PPM and a PPD file:
 =head1 DESCRIPTION
 
 The I<makerpm> script is designed for creating binary distributions of
-Perl modules, for example RPM packages (Linux) or PPM files (Windows,
+Perl packages, for example RPM packages (Linux) or PPM files (Windows,
 running ActivePerl).
 
 =head2 Creating RPM packages
 
-To create a new binary and source RPM, you typically store the tar.gz
-file in F</usr/src/redhat/SOURCES> (F</usr/src/packages/SOURCES> in
-case of SuSE and F</usr/src/OpenLinux/SOURCES> in case of Caldera) and
-do a
+To create a new binary and source RPM, from a perl tardist which has
+the standard perl naming scheme you just run
 
-  makerpm --source=<package>-<version>.tar.gz
+  makerpm <package-file-name>
+
+And it should I<automagically> do everything right including actually
+building the rpm.  Please note, though, that that mode is new and I
+will be loading all reasonable features onto it so what works now
+might break later or, hopefully, the other way round.
+
+Note, however, that you should at least look at the C<--copyright>
+option below if you are going to distribute the perl package.
+
+=head2 Taking more control
+
+To just create a spec file which you can later use to build a new
+binary and source RPM, you typically store the tar.gz file in
+F</usr/src/redhat/SOURCES> (F</usr/src/packages/SOURCES> in case of
+SuSE) and do a
+
+  makerpm --specs --source=<package>-<version>.tar.gz
 
 This will create a SPECS file in F</usr/src/redhat/SPECS>
 (F</usr/src/packages/SOURCES> in case of SuSE) which you
@@ -120,19 +135,16 @@ Here is a full list:
 
 =over 8
 
-=item --auto-desc
+=item --noauto-desc
 
-Activate automatic building of the description field.  See full
+Turn off automatic building of the description field.  See full
 description below.
 
 XS=item --build
 
-**** this is a deprecated internal function DO NOT USE IT ANY MORE *****
+**** this is an internal function DO NOT USE IT ANY MORE *****
 	
-Compile the sources, typically by running
-
-	perl Makefile.PL
-	make
+Compile the perl package.
 
 **** this feature will probably be removed soon!!! contact me if you use it!!!*****
 
@@ -303,9 +315,8 @@ Add the name of a package to the requires list for RPM
 =item --rpm-specs-dir=<dir>
 
 Sets certain directory names related to RPM mode, defaults to
-F</usr/src/redhat> (or F</usr/src/packages> on SuSE Linux or
-F</usr/src/OpenLinux> on Caldera) F<$topdir/BUILD>, F<$topdir/SOURCES>
-and F<$topdir/SPECS>.
+F</usr/src/redhat> (or F</usr/src/packages> on SuSE Linux)
+F<$topdir/BUILD>, F<$topdir/SOURCES> and F<$topdir/SPECS>.
 
 =item --rpm-group=<group>
 
@@ -555,13 +566,17 @@ sub MakeDirFor {
     }
 }
 
+# Extract - unpack the distribution so we can examine it.  Also initialise
+# the variable saying the filename of the source.
+
 
 sub Extract {
     my $self = shift;  my $dir = shift || File::Spec->curdir();
     print STDERR "Extract files in $dir\n" if $self->{'verbose'};
     chdir $dir || die "Failed to chdir to $dir: $!";
 
-    # Look for the source file
+    # Look for the source file - this logic should really go somewhere else e.g. new
+
     my $source = $self->{'source'} || die "Missing source definition";
     if (! -f $source) {
 	foreach my $dir (@{$self->{'source_dirs'}}) {
@@ -570,10 +585,17 @@ sub Extract {
 	    if (-f $s) {
 		print STDERR "Found $source in $dir\n" if $self->{'debug'};
 		$source = $s;
+		$self->{source_path}=$s;
 		last;
+	    } elsif ( -e $s ) {
+		warn "Ignoring non plain file $source in $dir\n";
 	    }
 	}
+    } else {
+	$self->{source_path}=$source;
     }
+
+    $self->{source_base} = File::Basename::basename($source);
 
     -e $source or do {
 	print STDERR "Source file doesn't exist in any sourcedir; pwd ",
@@ -966,6 +988,8 @@ sub Install {
 
 package Distribution::RPM;
 
+use File::Copy;
+
 @Distribution::RPM::ISA = qw(Distribution);
 
 {
@@ -1029,7 +1053,10 @@ package Distribution::RPM;
 	    die "Failed to work out build_dir from rpm" unless $build_dir;
 	}
 	if (!$topdir) {
-	    foreach my $dir ("redhat", "packages", "OpenLinux") {
+	    #if using "OpenLinux", please upgrade to RedHat or Fedora
+	    #(or SUSE).  That distribution is no longer supported and
+	    #never will be again.
+	    foreach my $dir ("redhat", "packages") {
 		if (-d "/usr/src/$dir") {
 		    $topdir = "/usr/src/$dir";
 		    last;
@@ -1846,11 +1873,11 @@ EOF
 
 	my $runtests = $self->{'runtests'} ? " --runtests" : "";
 
-	#Normally files should be owned by root.  
-	#non root then we can't do chowns (on any civilised operating
-	#system ;-) so we have to fix the ownership with a command.
+	#Normally files should be owned by root.  If we are non root
+	#then we can't do chowns (on any civilised operating system
+	#;-) so we have to fix the ownership with a command.
 
-	# This is a warning becuase there might be modules which might
+	# This is a warning because there might be modules which might
 	# install their own userid for security reasons or set files
 	# to other ownership's deliberately.  It is the responsibility
 	# of the packager to be aware of this.
@@ -2014,19 +2041,52 @@ EOF
 	    (print $fh $specs) or die "Failed to write to $specs_file: $!";
 	    close($fh) or die "Failed to close $specs_file: $!";
 	}
-	if ( -e $self->{'rpm-source-dir'} . "/" . $self->{'source'} ) {
-	    print STDERR "copy source file " . $self->{'source'} . " to " . 
-	      $self->{'rpm-source-dir'} . "\n";
-	    print STDERR "then";
-	} else {
-	    print STDERR "now";
-	}
-	print STDERR "run `rpmbuild -ba $specs_file' to create an rpm\n";
+	$self->{specs_file}=$specs_file;
     };
     my $status = $@;
     chdir $old_dir;
     die if $status;
 }
+
+#
+# tell the user how to build an rpm using the spec file
+#
+
+sub TellBuild {
+    my $self=shift;
+    if ( ! -e $self->{'rpm-source-dir'} . "/" . $self->{'source'} ) {
+	print STDERR "copy source file " . $self->{'source'} . " to " . 
+	  $self->{'rpm-source-dir'} . "\n";
+	print STDERR "then ";
+    } else {
+	print STDERR "now ";
+    }
+    print STDERR "run `rpmbuild -ba $self->{specs_file}' to create an rpm\n";
+}
+
+#
+# build an rpm using the spec file
+#
+
+# relies on Extract having been run to initialise facts about the
+# source file.
+
+sub DoBuild {
+    my $self=shift;
+    defined $self->{'source_path'} and defined $self->{'rpm-source-dir'} 
+      and defined $self->{'source_base'} or 
+	die "Source file variables not defined";
+    my $rpm_sfile = $self->{'rpm-source-dir'} . "/" . $self->{'source'};
+    unless ( -e  $rpm_sfile ) {
+	copy $self->{'source_path'}, 
+	  $self->{'rpm-source-dir'} ."/". $self->{'source_base'} or die $!;
+    } 
+    my @command=("rpmbuild", "-ba", $self->{specs_file});
+    print STDERR join " ", "running", @command;
+    exit 1 if system @command;
+}
+
+
 
 sub PPM {
     die "Cannot build PPM files in RPM mode.\n";
@@ -2276,17 +2336,27 @@ EOF
 			     'runtests', 'setup-dir=s', 'source=s', 'specs',
 			     'summary=s',
 			     'verbose', 'version', 'rpm-version=s');
-    Usage() if $o{'help'};
+    Usage() if $o{'help'}; 
     if ($o{'version'}) {
 	print "$VERSTR\n"; exit 1;
     }
     $o{'verbose'} = 1 if $o{'debug'};
 
+
+    if (@ARGV) {
+	defined $o{source} && die "file name specified as argument and option";
+	die "makerpm can only build one rpm at a time" if @ARGV > 1;
+	$o{source}=$ARGV[0];
+    }
+
     #trap this now so it's the primary error
     #    die "You must give an action; --prep, --build, --install or --specs\n"
     #	unless $o{'specs'}||$o{'prep'}||$o{'build'}||$o{'install'};
 
-    die "You must give the package filename in the --source option.\n"
+    exists $o{'ppm'} || exists $o{'prep'} || exists $o{'build'} || exists $o{'install'}
+      or $o{'all'} = 1;
+
+    die "What package do you want to build?  Try giving an command line argument.\n"
       if ((exists $o{'specs'} || exists $o{'prep'}) and
 	  not exists $o{'source'});
 
@@ -2329,7 +2399,12 @@ EOF
 	$self->Install();
     } elsif ($o{'specs'}) {
 	$self->Specs();
+	$self->TellBuild();
+    } elsif ($o{'all'}) {
+	$self->Specs();
+	$self->DoBuild();
     } else {
+	die "this shouldn't be reached";
 	$self->Specs();
     }
 }
@@ -2550,6 +2625,12 @@ version number and release it onto CPAN.
 
 =head1 CHANGES
 
+2004-02-08 Michael De La Rue <mikedlr@tardis.ed.ac.uk> 
+
+      * lots of improved diagnostics
+      * handling of Makefile.PM which returns undef
+      * new default "do everything" mode 
+
 2004-01-05 Michael De La Rue <mikedlr@tardis.ed.ac.uk> + Ed Avis.
 
       * --spec option is now default 
@@ -2560,7 +2641,6 @@ version number and release it onto CPAN.
       * clearly deprecate prep/build/install modes
       * multiple small cleanups
       
-
 2003-08-22 Michael De La Rue <mikedlr@tardis.ed.ac.uk>
 
       * removed --recursive option
