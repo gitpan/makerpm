@@ -46,7 +46,7 @@ use Symbol;
 
 use vars qw($VERSION $ID);
 
-$VERSION = "makerpm 0.210 2001/01/17, (C) 1999 Jochen Wiedmann (C) 2001 Michael De La Rue";
+$VERSION = "makerpm 0.300 2001/01/17, (C) 1999 Jochen Wiedmann (C) 2001 Michael De La Rue";
 $ID = '$Id: makerpm.pl,v 1.20 2001/06/02 19:57:56 mikedlr Exp $';
 
 =head1 NAME
@@ -139,6 +139,15 @@ package without destructing an existing installation.
 
 You don't need to supply a build root directory, a default name is
 choosen.
+
+=item --built-dir=<directory>
+
+By default, even when just making a spec file, makerpm extracts and
+builds the package in order to get information from it.  If the
+package has already been built somewhere then this option allows us to
+just use the given directory with no modification needed.  You must
+ensure yourself that the directory contains a completely built package
+otherwise things could go horribl wrong.
 
 =item --copyright=<msg>
 
@@ -568,8 +577,8 @@ sub Extract {
 #good idea :-)
 
 sub RMFiles {
-    my $self = shift; 
-    my $dir = shift || ( $self->{'build_dir'} . '/' . $self->{'setup-dir'} );
+    my $self = shift;
+    my $dir = shift || ( $self->{'built-dir'} );
 
     my $old_dir = Cwd::cwd();
     eval {
@@ -580,7 +589,7 @@ sub RMFiles {
       my @manifest=<$fh>;
       close $fh;
       my $re = $self->{'rm-files'};
-      print STDERR "Removing files matching ".$self->{'rm-files'}." in $dir\n" 
+      print STDERR "Removing files matching ".$self->{'rm-files'}." in $dir\n"
 	if $self->{'verbose'};
       for (my $i=$#manifest; $i > -1 ; $i--) {
 	chomp $manifest[$i];
@@ -825,6 +834,7 @@ sub Build {
     my $status = $@;
     chdir $old_dir;
     die $@ if $status;
+    $self->{"built-dir"}=$self->{'build_dir'} . '/' . $self->{'setup-dir'};
 }
 
 sub CleanBuildRoot {
@@ -893,6 +903,7 @@ package Distribution::RPM;
 	die "RPM --version option didn't work as expected..";
       }
     }
+    $self->{"rpm-version"}=$rpm_version;
 
   CASE: {
       $rpm_version == 2 && do { $self->handle_rpm_version_2() ; last CASE;};
@@ -908,8 +919,6 @@ package Distribution::RPM;
     if (!$source_dir) {
       $source_dir = $ENV{'RPM_SOURCE_DIR'} if $ENV{'RPM_SOURCE_DIR'};
       $build_dir = $ENV{'RPM_BUILD_DIR'} if $ENV{'RPM_BUILD_DIR'};
-
-      
 
       $source_dir=`rpm --eval '%_sourcedir'` unless $source_dir;
       chomp $source_dir;
@@ -1320,9 +1329,10 @@ sub AutoDocs() {
     my @files=readdir (BASEDIR);
     @docs= grep {m/(^README)|(^COPYING$)|(^doc(s|u.*)?)/i} @files;
     print STDERR "Found the following documentation files\n" ,
-      join "  " , @docs if $self->{'verbose'};
+      join ("  " , @docs ), "\n" if $self->{'verbose'};
     foreach my $doc (@docs) {
-      $return .= "\%doc " . $self->{'setup-dir'} . '/' . $doc . "\n";
+#      $return .= "\%doc " . $self->{'setup-dir'} . '/' . $doc . "\n";
+      $return .= "\%doc " . $doc . "\n";
     }
   };
   my $status = $@;
@@ -1429,8 +1439,10 @@ sub Description {
     my $old_dir = Cwd::cwd();
     my $desc = "";
     my $descfilename = "description";
+    die "package not yet built when looking for description"
+      unless $self->{"built-dir"};
     eval {
-	my $dir =  $self->{'build_dir'} . '/' . $self->{'setup-dir'};
+	my $dir =  $self->{"built-dir"};
 	print STDERR "Changing directory to $dir\n" if $self->{'verbose'};
 	chdir $dir || die "Failed to chdir to $dir: $!";
       CASE: {
@@ -1518,7 +1530,7 @@ sub Requires {
     my $old_dir = Cwd::cwd();
     my $desc = "";
     eval {
-	my $dir =  $self->{'build_dir'} . '/' . $self->{'setup-dir'};
+	my $dir =  $self->{'built-dir'};
 	print STDERR "Changing directory to $dir\n" if $self->{'verbose'};
 	chdir $dir || die "Failed to chdir to $dir: $!";
       CASE: {
@@ -1577,7 +1589,7 @@ sub ReadConfigFile {
   my $old_dir = Cwd::cwd();
   my $returnme=undef;
   eval {
-    my $dir =  $self->{'build_dir'} . '/' . $self->{'setup-dir'};
+    my $dir =  $self->{'built-dir'};
     print STDERR "Changing directory to $dir\n" if $self->{'verbose'};
     chdir $dir || die "Failed to chdir to $dir: $!";
     my $pkg_own_file = $self->{"rpm-data-dir"} . "/" . $filename;
@@ -1619,13 +1631,29 @@ sub Specs {
     my $self = shift;
     my $old_dir = Cwd::cwd();
     eval {
+
+      # We want to do a build so that the package author has the
+      # chance to create any dynamic data he wants us to be able to be
+      # able to see such as platform specific scripts or text
+      # format documentation derived from something else.
+
+      unless ( $self->{"built-dir"} ) {
 	$self->Prep();
 	$self->Build();
+      }
+
+
 
 	$self->Description();
 	$self->Requires();
 
-	my $filelist = $self->Install();
+	#FIXME check what side effects install has... hmm get rid of them
+	#if they are important.
+	my $filelist;
+	$filelist = $self->Install() if ($self->{recursive}) ;
+      #where is this file going anyway???
+	$filelist = $self->{'name'}.$self->{'version'} . '.filelist'
+	  unless defined $filelist;
 
 	my($files, $dirs) = $self->Files($self->{'build-root'});
 
@@ -1676,7 +1704,11 @@ Version:   %{packageversion}
 Release:   %{release}
 Group:     $self->{'rpm-group'}
 Source:    $self->{'source'}
+EOF
+	$specs .= <<"EOF" if ($self->{recursive}) ;
 Source1:   makerpm.pl
+EOF
+	$specs .= <<"EOF";
 Copyright: $self->{'copyright'}
 BuildRoot: $self->{'build-root'}
 Provides:  $prefix%{packagename}
@@ -1739,7 +1771,6 @@ $self->{'description'}
 EOF
 
 	$specs .= <<"EOF" if $self->{'find-requires'};
-
 # Provide perl-specific find-{provides,requires}.
 %define __find_provides /usr/lib/rpm/find-provides.perl
 %define __find_requires /usr/lib/rpm/find-requires.perl
@@ -1748,12 +1779,45 @@ EOF
 
 	$specs .= <<"EOF";
 %prep
+EOF
+
+	if ($self->{recursive}) {
+	  $specs .= <<"EOF" ;
 $makerpm_path $cascade_opts  --prep
+EOF
+	} else {
+	    $specs .= <<"EOF" ;
+%setup -q -n $self->{'setup-dir'}
+EOF
+	    #FIXME we haven't actually checked that a file would be removed
+	    #so this might give an error at prep time?
+            $specs .= <<"EOF" if $self->{'rm-files'};
+find $self->{'setup-dir'} -regex '$self->{'rm-files'} ' -print0 | xargs -0 rm
+EOF
+	}
+
+	$specs .= <<"EOF" ;
 
 $prep_script
 
 %build
-$makerpm_path $cascade_opts --build$runtests %{makeopts} %{makeperlopts} %{makemakeropts} 
+EOF
+	if ($self->{recursive}) {
+	  #FIXME: I bet this doesn't work properly; but I'm too lazy to test
+	$specs .= <<"EOF" ;
+$makerpm_path $cascade_opts --build$runtests %{makeopts} %{makeperlopts} %{makemakeropts}
+EOF
+      } else {
+	$specs .= 'CFLAGS="$RPM_OPT_FLAGS" perl ';
+	$specs .= '%{makeperlopts} ' if @{$self->{'makeperlopts'}};
+	$specs .= ' Makefile.PL ';
+	$specs .= '%{makemakeropts}' if @{$self->{'makemakeropts'}};
+	$specs .= "\nmake";
+	$specs .= '%{makeopts}' if $self->{'makeopts'};
+	$specs .= "\n";
+      }
+
+	$specs .= <<"EOF" ;
 
 $build_script
 
@@ -1762,9 +1826,45 @@ rm -rf \$RPM_BUILD_ROOT
 
 $install_script
 
-#makerpm is run after the install script to pick up all of the files
+#run install script first so we can pick up all of the files
 
+EOF
+	if ($self->{recursive}) {
+	$specs .= <<"EOF" ;
 $makerpm_path $cascade_opts --install %{makeopts}
+EOF
+      } else {
+	$specs .= <<"EOF" ;
+
+eval `perl '-V:installarchlib'`
+mkdir -p \$RPM_BUILD_ROOT/\$installarchlib
+make PREFIX=\$RPM_BUILD_ROOT/usr install
+
+[ -x /usr/lib/rpm/brp-compress ] && /usr/lib/rpm/brp-compress
+
+find \$RPM_BUILD_ROOT/usr -type f -print | 
+	sed "s\@^\$RPM_BUILD_ROOT\@\@g" | 
+	grep -v perllocal.pod | 
+	grep -v "\.packlist" > $filelist
+if [ "\$(cat $filelist)X" = "X" ] ; then
+    echo "ERROR: EMPTY FILE LIST"
+    exit -1
+fi
+
+
+EOF
+      }
+
+
+	my ($name,$passwd,$uid,$gid, $quota,$comment,$gcos,$dir,$shell,$expire)
+	  = getpwent;
+	#fixme: external calls not really needed
+	#fixme more: date works in the local locale, but will RPM
+	#then be able to hack it?!?!
+	my $date=`date +'%a %b %d %Y %T'`; chomp $date;
+	my $host=`hostname`; chomp $host;
+
+	$specs .= <<"EOF" ;
 
 %clean
 
@@ -1795,6 +1895,13 @@ $verify_script
 %files -f $filelist
 $defattr
 $doclist
+
+%changelog
+* $date autogenerated
+- by $comment <$name\@$host>
+- using MakeRPM:
+- $::VERSION
+- $::ID
 EOF
 
 	my $specs_name = "$self->{'name'}-$self->{'version'}.spec";
@@ -1963,6 +2070,7 @@ Possible options are:
                                 perl module from the contents of the package.
   --build-root=<dir>		Set build-root directory for installation;
 				defaults to $build_root.
+  --built-dir=<dir>             Directory where the package is already built.
   --copyright=<msg>		Set copyright message, defaults to
 				"Probably the same terms as perl.  Check.".
   --data-dir                    Directory of data for defining package
@@ -1990,7 +2098,7 @@ Possible options are:
 				multiple times.
   --rmfiles=<regex>             Perl regular expression for files to be 
                                 removed from the build directory and 
-                                MANIFEST file.  DANGEROUS.
+                                MANIFEST file at prep time.  DANGEROUS.
   --runtests			By default no "make test" is done. You
 				can override this with --runtests.
   --setup-dir=<dir>		Name of setup directory; defaults to
@@ -2040,6 +2148,7 @@ EOF
     my %o = ( 'chown' => 1 , 'name-prefix' => 1, 
 	      'makeperlopts' => [], 'makemakeropts' => []);
     Getopt::Long::GetOptions(\%o, 'auto-desc', 'build', 'build-root=s',
+			     'built-dir=s',
 			     'copyright=s', 'chown!', 'data-dir=s', 'debug',
 			     'desc-file=s', 'find-requires!',
 			     'help', 'install', 'make=s',

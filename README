@@ -1,9 +1,14 @@
 Makerpm builds RPM files from perl modules.  See the documentation in POD
 format in the program for details.
 
-The 0.210 release is a bug fix update which should mean makerpm works on
-RedHat 7.1.  Test reports are particularly appreciated.  Even more
-appreciated would be a test suite. 
+Compared to the inbuilt tools of redhat's system it is more complex
+but should generate better RPMS.
+
+The 0.300 release is a bug fix update which fixes handling of
+documentation files.  
+
+N.B. in this version makerpm is no longer used in the build process.
+This simplifies the build process somewhat.
 
 N.B. a number of code paths have NOT been tested.  It generates RPMs from my
 modules, but little else is guaranteed until other people have tested it.
